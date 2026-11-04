@@ -11,6 +11,13 @@ import {
   SelectValue,
 } from '../ui/select';
 import { toast } from '../ui/use-toast';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '../ui/tooltip';
+import { Info } from 'lucide-react';
 import { getDefaultLocation, listLocations, setDefaultLocation } from './api';
 import { useDashboardHost } from './dashboard-host';
 
@@ -105,6 +112,19 @@ export function DefaultLocationControl(): JSX.Element | null {
         </a>
         :
       </span>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Info className="h-4 w-4" />
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs">
+            <p>
+              Used for new basins that don&apos;t pick a location. Existing
+              basins keep theirs.
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
       <Select
         value={defaultLocation?.name ?? ''}
         onValueChange={(value) => void handleChange(value)}
