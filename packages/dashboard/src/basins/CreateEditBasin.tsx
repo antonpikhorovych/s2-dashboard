@@ -48,22 +48,27 @@ type CreateEditBasinDialogProps =
     }
   | {
       data: null;
+      /* Start from another basin's configuration ("Create similar basin"). */
+      initialValues?: BasinInitialValues;
       onClose: () => void;
       onSuccess?: () => void;
       redirectToBasin?: boolean;
     };
+
+export interface BasinInitialValues {
+  source: string;
+  config: BasinConfig;
+  location?: string;
+}
 
 const ENCRYPTION_ALGORITHMS = [
   'aegis-256',
   'aes-256-gcm',
 ] as const satisfies readonly EncryptionAlgorithm[];
 
-const CreateEditBasinDialog = ({
-  data,
-  onClose,
-  onSuccess,
-  redirectToBasin = true,
-}: CreateEditBasinDialogProps) => {
+const CreateEditBasinDialog = (props: CreateEditBasinDialogProps) => {
+  const { data, onClose, onSuccess, redirectToBasin = true } = props;
+  const initialValues = data ? undefined : props.initialValues;
   const {
     getClient,
     scopeKey,
@@ -77,14 +82,15 @@ const CreateEditBasinDialog = ({
   const [basinId, setBasinId] = useState(data?.id || '');
   const [nameTouched, setNameTouched] = useState(false);
   const [config, setConfig] = useState<BasinConfig>(
-    data?.config || {
-      createStreamOnAppend: false,
-      createStreamOnRead: false,
-      defaultStreamConfig: defaultStreamConfig,
-    }
+    data?.config ||
+      initialValues?.config || {
+        createStreamOnAppend: false,
+        createStreamOnRead: false,
+        defaultStreamConfig: defaultStreamConfig,
+      }
   );
   const [locationSelection, setLocationSelection] = useState<string>(
-    DEFAULT_LOCATION_VALUE
+    initialValues?.location ?? DEFAULT_LOCATION_VALUE
   );
   const [isAwaiting, setIsAwaiting] = useState(false);
 
@@ -200,7 +206,9 @@ const CreateEditBasinDialog = ({
           <DialogDescription>
             {data
               ? 'Configuration for this basin.'
-              : 'Name the basin and configure its settings.'}
+              : initialValues
+                ? `Starts from the configuration of ${initialValues.source}.`
+                : 'Name the basin and configure its settings.'}
           </DialogDescription>
         </DialogHeader>
         <TooltipProvider>
