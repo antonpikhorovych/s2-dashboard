@@ -45,6 +45,7 @@ const TableBasins = ({ data, onSelectedBasinsChange }: TableBasinsProps) => {
   const [configDialog, setConfigDialog] = useState<{
     id: string;
     config: BasinConfig;
+    location?: string;
   } | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<null | string[]>(null);
   const { getClient, route, Link, capabilities } = useDashboardHost();
@@ -193,6 +194,7 @@ const TableBasins = ({ data, onSelectedBasinsChange }: TableBasinsProps) => {
                               setConfigDialog({
                                 id: basin.name,
                                 config: basinConfig,
+                                location: basin.location ?? undefined,
                               });
                             } catch (err: unknown) {
                               if (err instanceof S2Error) {

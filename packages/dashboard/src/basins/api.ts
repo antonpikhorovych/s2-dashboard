@@ -9,6 +9,7 @@ import type {
   ListBasinsInput,
   ListLocationsResponse,
   ListStreamsInput,
+  LocationInfo,
   StreamConfig,
   ListBasinsResponse,
   ListStreamsResponse,
@@ -57,6 +58,17 @@ export async function createBasin(
 
 export async function listLocations(s2: S2): Promise<ListLocationsResponse> {
   return await s2.locations.list();
+}
+
+export async function getDefaultLocation(s2: S2): Promise<LocationInfo> {
+  return await s2.locations.getDefault();
+}
+
+export async function setDefaultLocation(
+  s2: S2,
+  location: string
+): Promise<LocationInfo> {
+  return await s2.locations.setDefault({ location });
 }
 
 export async function getBasinConfig(

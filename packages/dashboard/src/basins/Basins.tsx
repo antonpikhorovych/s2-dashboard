@@ -16,6 +16,7 @@ import { Input } from '../ui/input';
 import DeleteBasinDialog from './DeleteBasin';
 import { useDashboardHost } from './dashboard-host';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { DefaultLocationControl } from './locations';
 
 const BASINS_PER_PAGE = 25;
 
@@ -167,6 +168,7 @@ function BasinsList(): JSX.Element {
           )}
         </div>
       </motion.div>
+      <DefaultLocationControl />
       {PrivateConnectivity ? (
         <Tabs defaultValue="basins">
           <TabsList className="mb-2 w-full">
