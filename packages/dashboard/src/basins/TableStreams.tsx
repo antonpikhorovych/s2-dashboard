@@ -219,7 +219,7 @@ const TableStreams = ({ data, onSelectedStreamsChange }: TableStreamsProps) => {
                           }}
                         >
                           <Copy className="h-4 w-4" />
-                          Create similar stream
+                          Copy stream configuration
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem

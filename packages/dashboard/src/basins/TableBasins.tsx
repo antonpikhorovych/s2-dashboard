@@ -229,7 +229,7 @@ const TableBasins = ({ data, onSelectedBasinsChange }: TableBasinsProps) => {
                           }}
                         >
                           <Copy className="h-4 w-4" />
-                          Create similar basin
+                          Copy basin configuration
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem

@@ -48,7 +48,7 @@ type CreateEditBasinDialogProps =
     }
   | {
       data: null;
-      /* Start from another basin's configuration ("Create similar basin"). */
+      /* Start from another basin's configuration ("Copy basin configuration"). */
       initialValues?: BasinInitialValues;
       onClose: () => void;
       onSuccess?: () => void;
