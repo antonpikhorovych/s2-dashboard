@@ -14,6 +14,8 @@ import { toast } from '../ui/use-toast';
 import { getDefaultLocation, listLocations, setDefaultLocation } from './api';
 import { useDashboardHost } from './dashboard-host';
 
+const LOCATIONS_DOCS = 'https://s2.dev/docs/concepts/basins#location';
+
 // Locations change rarely and each lookup is an account control op, so both
 // queries are shared across the Basins page and the create dialog and kept
 // for a while; the default is re-read only after it is changed here.
@@ -54,7 +56,7 @@ export function useDefaultLocation(enabled = true) {
   );
 }
 
-/* One-line "default location for new basins" picker for the Basins page. */
+/* Compact "default location for new basins" picker for the Basins header. */
 export function DefaultLocationControl(): JSX.Element | null {
   const { getClient, scopeKey, capabilities } = useDashboardHost();
   const queryClient = useQueryClient();
@@ -91,7 +93,18 @@ export function DefaultLocationControl(): JSX.Element | null {
 
   return (
     <div className="text-muted-foreground flex items-center gap-2 text-sm">
-      <span>New basins default to</span>
+      <span className="hidden sm:inline">
+        Default{' '}
+        <a
+          href={LOCATIONS_DOCS}
+          target="_blank"
+          rel="noreferrer"
+          className="hover:text-foreground underline decoration-dotted underline-offset-4"
+        >
+          location
+        </a>
+        :
+      </span>
       <Select
         value={defaultLocation?.name ?? ''}
         onValueChange={(value) => void handleChange(value)}

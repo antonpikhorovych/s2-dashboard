@@ -139,7 +139,8 @@ function BasinsList(): JSX.Element {
         >
           Basins
         </motion.h1>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-3">
+          <DefaultLocationControl />
           {selectedBasins.length > 0 && (
             <Button
               onClick={(): void => {
@@ -168,7 +169,6 @@ function BasinsList(): JSX.Element {
           )}
         </div>
       </motion.div>
-      <DefaultLocationControl />
       {PrivateConnectivity ? (
         <Tabs defaultValue="basins">
           <TabsList className="mb-2 w-full">
