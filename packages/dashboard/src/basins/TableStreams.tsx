@@ -55,7 +55,10 @@ const TableStreams = ({ data, onSelectedStreamsChange }: TableStreamsProps) => {
     id: string;
     config: StreamConfig;
   } | null>(null);
-  const [similarDialog, setSimilarDialog] = useState<StreamConfig | null>(null);
+  const [similarDialog, setSimilarDialog] = useState<{
+    source: string;
+    config: StreamConfig;
+  } | null>(null);
 
   const fetchConfig = async (
     streamName: string
@@ -215,7 +218,7 @@ const TableStreams = ({ data, onSelectedStreamsChange }: TableStreamsProps) => {
                           onClick={async () => {
                             const config = await fetchConfig(stream.name);
                             if (config === null) return;
-                            setSimilarDialog(config);
+                            setSimilarDialog({ source: stream.name, config });
                           }}
                         >
                           <Copy className="h-4 w-4" />
@@ -244,7 +247,8 @@ const TableStreams = ({ data, onSelectedStreamsChange }: TableStreamsProps) => {
         <CreateEditStreamDialog
           basinId={basinId}
           data={null}
-          defaultConfig={similarDialog}
+          defaultConfig={similarDialog.config}
+          copiedFrom={similarDialog.source}
           onClose={() => {
             setSimilarDialog(null);
           }}
