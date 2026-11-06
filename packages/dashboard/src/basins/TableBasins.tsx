@@ -260,6 +260,7 @@ const TableBasins = ({ data, onSelectedBasinsChange }: TableBasinsProps) => {
       )}
       {similarDialog && (
         <CreateEditBasinDialog
+          key={similarDialog.source}
           data={null}
           initialValues={similarDialog}
           onClose={() => {

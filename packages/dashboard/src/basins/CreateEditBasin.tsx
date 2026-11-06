@@ -270,8 +270,11 @@ const CreateEditBasinDialog = (props: CreateEditBasinDialogProps) => {
                   </Select>
                   {isLocationsError ? (
                     <p className="text-destructive text-xs dark:text-red-400">
-                      Couldn&apos;t load locations — basin will be created in
-                      your account default.
+                      Couldn&apos;t load locations — basin will be created in{' '}
+                      {locationSelection === DEFAULT_LOCATION_VALUE
+                        ? 'your account default'
+                        : locationSelection}
+                      .
                     </p>
                   ) : (
                     <p className="text-muted-foreground text-xs">

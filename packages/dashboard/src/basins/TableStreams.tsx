@@ -245,6 +245,7 @@ const TableStreams = ({ data, onSelectedStreamsChange }: TableStreamsProps) => {
       </TooltipProvider>
       {similarDialog && basinId && (
         <CreateEditStreamDialog
+          key={similarDialog.source}
           basinId={basinId}
           data={null}
           defaultConfig={similarDialog.config}

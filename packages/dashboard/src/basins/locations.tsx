@@ -104,9 +104,15 @@ export function DefaultLocationControl(): JSX.Element | null {
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="hover:text-foreground cursor-help underline decoration-dotted underline-offset-4">
+              <button
+                type="button"
+                onClick={() =>
+                  window.open(LOCATIONS_DOCS, '_blank', 'noreferrer')
+                }
+                className="hover:text-foreground underline decoration-dotted underline-offset-4"
+              >
                 location
-              </span>
+              </button>
             </TooltipTrigger>
             <TooltipContent className="max-w-xs">
               <p>
