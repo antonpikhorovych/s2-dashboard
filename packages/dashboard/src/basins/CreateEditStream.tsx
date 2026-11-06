@@ -24,6 +24,7 @@ type CreateEditStreamDialogProps =
       basinId: string;
       data: { id: string; config: StreamConfig };
       defaultConfig?: never;
+      copiedFrom?: never;
       onClose: () => void;
       onSuccess?: () => void;
     }
@@ -31,6 +32,8 @@ type CreateEditStreamDialogProps =
       basinId: string;
       data: null;
       defaultConfig?: StreamConfig | null;
+      /* Name of the stream whose config seeds the form ("Copy stream configuration"). */
+      copiedFrom?: string;
       onClose: () => void;
       onSuccess?: () => void;
     };
@@ -39,6 +42,7 @@ const CreateEditStreamDialog = ({
   basinId,
   data,
   defaultConfig,
+  copiedFrom,
   onClose,
   onSuccess,
 }: CreateEditStreamDialogProps) => {
@@ -132,7 +136,9 @@ const CreateEditStreamDialog = ({
           <DialogDescription>
             {data
               ? 'Configuration for this stream.'
-              : 'Name the stream and optionally override its configuration.'}
+              : copiedFrom
+                ? `Starts from the configuration of ${copiedFrom}.`
+                : 'Name the stream and optionally override its configuration.'}
           </DialogDescription>
         </DialogHeader>
         <form

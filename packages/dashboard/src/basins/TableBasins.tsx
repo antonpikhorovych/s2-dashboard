@@ -16,13 +16,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { ChevronRight, Ellipsis, Settings2, Trash2 } from 'lucide-react';
+import { ChevronRight, Copy, Ellipsis, Settings2, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { getBasinConfig } from './api';
 import { toast } from '../ui/use-toast';
 import clsx from 'clsx';
 
-import CreateEditBasinDialog from './CreateEditBasin';
+import CreateEditBasinDialog, {
+  type BasinInitialValues,
+} from './CreateEditBasin';
 import DeleteBasinDialog from './DeleteBasin';
 import type { BasinConfig, BasinInfo } from '@s2-dev/streamstore';
 import { S2Error } from '@s2-dev/streamstore';
@@ -45,9 +47,37 @@ const TableBasins = ({ data, onSelectedBasinsChange }: TableBasinsProps) => {
   const [configDialog, setConfigDialog] = useState<{
     id: string;
     config: BasinConfig;
+    location?: string;
   } | null>(null);
+  const [similarDialog, setSimilarDialog] = useState<BasinInitialValues | null>(
+    null
+  );
   const [deleteDialog, setDeleteDialog] = useState<null | string[]>(null);
   const { getClient, route, Link, capabilities } = useDashboardHost();
+
+  const fetchConfig = async (
+    basinName: string
+  ): Promise<BasinConfig | null> => {
+    try {
+      const s2 = await getClient();
+      if (s2 === null) {
+        toast({
+          title: 'Error fetching token',
+          description: 'Please log in again or switch to local no-auth mode.',
+          variant: 'destructive',
+        });
+        return null;
+      }
+      return await getBasinConfig(s2, basinName);
+    } catch (err: unknown) {
+      toast({
+        title: 'Error fetching basin configuration',
+        description: err instanceof S2Error ? err.message : undefined,
+        variant: 'destructive',
+      });
+      return null;
+    }
+  };
   const { pathname } = route;
   const section = isDashboardSection(pathname, 'basins') ? 'basins' : 'metrics';
 
@@ -175,43 +205,31 @@ const TableBasins = ({ data, onSelectedBasinsChange }: TableBasinsProps) => {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
                           onClick={async () => {
-                            try {
-                              const s2 = await getClient();
-                              if (s2 === null) {
-                                toast({
-                                  title: 'Error fetching token',
-                                  description:
-                                    'Please log in again or switch to local no-auth mode.',
-                                  variant: 'destructive',
-                                });
-                                return;
-                              }
-                              const basinConfig = await getBasinConfig(
-                                s2,
-                                basin.name
-                              );
-                              setConfigDialog({
-                                id: basin.name,
-                                config: basinConfig,
-                              });
-                            } catch (err: unknown) {
-                              if (err instanceof S2Error) {
-                                toast({
-                                  title: 'Error fetching basin configuration',
-                                  description: err.message,
-                                  variant: 'destructive',
-                                });
-                              } else {
-                                toast({
-                                  title: 'Error fetching basin configuration',
-                                  variant: 'destructive',
-                                });
-                              }
-                            }
+                            const config = await fetchConfig(basin.name);
+                            if (config === null) return;
+                            setConfigDialog({
+                              id: basin.name,
+                              config,
+                              location: basin.location ?? undefined,
+                            });
                           }}
                         >
                           <Settings2 className="h-4 w-4" />
                           Edit configuration
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={async () => {
+                            const config = await fetchConfig(basin.name);
+                            if (config === null) return;
+                            setSimilarDialog({
+                              source: basin.name,
+                              config,
+                              location: basin.location ?? undefined,
+                            });
+                          }}
+                        >
+                          <Copy className="h-4 w-4" />
+                          Copy basin configuration
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
@@ -237,6 +255,16 @@ const TableBasins = ({ data, onSelectedBasinsChange }: TableBasinsProps) => {
           data={configDialog}
           onClose={() => {
             setConfigDialog(null);
+          }}
+        />
+      )}
+      {similarDialog && (
+        <CreateEditBasinDialog
+          key={similarDialog.source}
+          data={null}
+          initialValues={similarDialog}
+          onClose={() => {
+            setSimilarDialog(null);
           }}
         />
       )}

@@ -16,6 +16,7 @@ import { Input } from '../ui/input';
 import DeleteBasinDialog from './DeleteBasin';
 import { useDashboardHost } from './dashboard-host';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { DefaultLocationControl } from './locations';
 
 const BASINS_PER_PAGE = 25;
 
@@ -138,7 +139,8 @@ function BasinsList(): JSX.Element {
         >
           Basins
         </motion.h1>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-3">
+          <DefaultLocationControl />
           {selectedBasins.length > 0 && (
             <Button
               onClick={(): void => {

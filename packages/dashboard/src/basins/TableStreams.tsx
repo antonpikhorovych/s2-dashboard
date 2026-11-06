@@ -19,6 +19,7 @@ import {
 } from '../ui/dropdown-menu';
 import { Button } from '../ui/button';
 import {
+  Copy,
   Ellipsis,
   KeyRound,
   Settings2,
@@ -54,6 +55,34 @@ const TableStreams = ({ data, onSelectedStreamsChange }: TableStreamsProps) => {
     id: string;
     config: StreamConfig;
   } | null>(null);
+  const [similarDialog, setSimilarDialog] = useState<{
+    source: string;
+    config: StreamConfig;
+  } | null>(null);
+
+  const fetchConfig = async (
+    streamName: string
+  ): Promise<StreamConfig | null> => {
+    try {
+      const s2 = await getClient();
+      if (s2 === null) {
+        toast({
+          title: 'Error fetching token',
+          description: 'Please log in again or switch to local no-auth mode.',
+          variant: 'destructive',
+        });
+        return null;
+      }
+      return await getStreamConfig(basinId, streamName, s2);
+    } catch (err: unknown) {
+      toast({
+        title: 'Error fetching stream configuration',
+        description: err instanceof S2Error ? err.message : undefined,
+        variant: 'destructive',
+      });
+      return null;
+    }
+  };
 
   const {
     selectedItems: selectedStreams,
@@ -177,44 +206,23 @@ const TableStreams = ({ data, onSelectedStreamsChange }: TableStreamsProps) => {
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={async () => {
-                            try {
-                              const s2 = await getClient();
-                              if (s2 === null) {
-                                toast({
-                                  title: 'Error fetching token',
-                                  description:
-                                    'Please log in again or switch to local no-auth mode.',
-                                  variant: 'destructive',
-                                });
-                                return;
-                              }
-                              const streamConfig = await getStreamConfig(
-                                basinId,
-                                stream.name,
-                                s2
-                              );
-                              setConfigDialog({
-                                id: stream.name,
-                                config: streamConfig,
-                              });
-                            } catch (err: unknown) {
-                              if (err instanceof S2Error) {
-                                toast({
-                                  title: 'Error fetching stream configuration',
-                                  description: err.message,
-                                  variant: 'destructive',
-                                });
-                              } else {
-                                toast({
-                                  title: 'Error fetching stream configuration',
-                                  variant: 'destructive',
-                                });
-                              }
-                            }
+                            const config = await fetchConfig(stream.name);
+                            if (config === null) return;
+                            setConfigDialog({ id: stream.name, config });
                           }}
                         >
                           <Settings2 className="h-4 w-4" />
                           Edit configuration
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={async () => {
+                            const config = await fetchConfig(stream.name);
+                            if (config === null) return;
+                            setSimilarDialog({ source: stream.name, config });
+                          }}
+                        >
+                          <Copy className="h-4 w-4" />
+                          Copy stream configuration
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
@@ -235,6 +243,18 @@ const TableStreams = ({ data, onSelectedStreamsChange }: TableStreamsProps) => {
           </TableBody>
         </Table>
       </TooltipProvider>
+      {similarDialog && basinId && (
+        <CreateEditStreamDialog
+          key={similarDialog.source}
+          basinId={basinId}
+          data={null}
+          defaultConfig={similarDialog.config}
+          copiedFrom={similarDialog.source}
+          onClose={() => {
+            setSimilarDialog(null);
+          }}
+        />
+      )}
       {configDialog && typeof basinId === 'string' && (
         <CreateEditStreamDialog
           basinId={basinId}

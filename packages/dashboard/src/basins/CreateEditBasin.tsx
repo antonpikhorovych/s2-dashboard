@@ -27,47 +27,48 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select';
-import { useQuery, useQueryClient } from 'react-query';
-import {
-  createBasin,
-  listLocations,
-  updateBasinConfig,
-  isTierRelatedError,
-} from './api';
+import { useQueryClient } from 'react-query';
+import { createBasin, updateBasinConfig, isTierRelatedError } from './api';
 import { S2Error } from '@s2-dev/streamstore';
 import StreamConfigInputs, {
   defaultConfig as defaultStreamConfig,
 } from './StreamConfigInputs';
 import { Info } from 'lucide-react';
 import { createDashboardClient, useDashboardHost } from './dashboard-host';
+import { locationLabel, useDefaultLocation, useLocations } from './locations';
 
 const DEFAULT_LOCATION_VALUE = '__default__';
 
 type CreateEditBasinDialogProps =
   | {
-      data: { id: string; config: BasinConfig };
+      data: { id: string; config: BasinConfig; location?: string };
       onClose: () => void;
       onSuccess?: () => void;
       redirectToBasin?: boolean;
     }
   | {
       data: null;
+      /* Start from another basin's configuration ("Copy basin configuration"). */
+      initialValues?: BasinInitialValues;
       onClose: () => void;
       onSuccess?: () => void;
       redirectToBasin?: boolean;
     };
+
+export interface BasinInitialValues {
+  source: string;
+  config: BasinConfig;
+  location?: string;
+}
 
 const ENCRYPTION_ALGORITHMS = [
   'aegis-256',
   'aes-256-gcm',
 ] as const satisfies readonly EncryptionAlgorithm[];
 
-const CreateEditBasinDialog = ({
-  data,
-  onClose,
-  onSuccess,
-  redirectToBasin = true,
-}: CreateEditBasinDialogProps) => {
+const CreateEditBasinDialog = (props: CreateEditBasinDialogProps) => {
+  const { data, onClose, onSuccess, redirectToBasin = true } = props;
+  const initialValues = data ? undefined : props.initialValues;
   const {
     getClient,
     scopeKey,
@@ -81,14 +82,15 @@ const CreateEditBasinDialog = ({
   const [basinId, setBasinId] = useState(data?.id || '');
   const [nameTouched, setNameTouched] = useState(false);
   const [config, setConfig] = useState<BasinConfig>(
-    data?.config || {
-      createStreamOnAppend: false,
-      createStreamOnRead: false,
-      defaultStreamConfig: defaultStreamConfig,
-    }
+    data?.config ||
+      initialValues?.config || {
+        createStreamOnAppend: false,
+        createStreamOnRead: false,
+        defaultStreamConfig: defaultStreamConfig,
+      }
   );
   const [locationSelection, setLocationSelection] = useState<string>(
-    DEFAULT_LOCATION_VALUE
+    initialValues?.location ?? DEFAULT_LOCATION_VALUE
   );
   const [isAwaiting, setIsAwaiting] = useState(false);
 
@@ -97,23 +99,8 @@ const CreateEditBasinDialog = ({
     data: locationsResponse,
     isLoading: isLoadingLocations,
     isError: isLocationsError,
-  } = useQuery(
-    ['locations', scopeKey],
-    async () => {
-      const s2 = await getClient();
-      if (s2 === null) {
-        throw new Error('No auth token');
-      }
-      return await listLocations(s2);
-    },
-    {
-      enabled: isCreating && capabilities.locations,
-      staleTime: 5 * 60 * 1000,
-      refetchOnWindowFocus: false,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-    }
-  );
+  } = useLocations(isCreating);
+  const { data: defaultLocation } = useDefaultLocation(isCreating);
   const knownLocations = locationsResponse ?? [];
 
   // Reset the location selection during render when the org changes,
@@ -219,7 +206,9 @@ const CreateEditBasinDialog = ({
           <DialogDescription>
             {data
               ? 'Configuration for this basin.'
-              : 'Name the basin and configure its settings.'}
+              : initialValues
+                ? `Starts from the configuration of ${initialValues.source}.`
+                : 'Name the basin and configure its settings.'}
           </DialogDescription>
         </DialogHeader>
         <TooltipProvider>
@@ -270,21 +259,54 @@ const CreateEditBasinDialog = ({
                     <SelectContent>
                       <SelectItem value={DEFAULT_LOCATION_VALUE}>
                         Account default
+                        {defaultLocation ? ` (${defaultLocation.name})` : ''}
                       </SelectItem>
                       {knownLocations.map((loc) => (
                         <SelectItem key={loc.name} value={loc.name}>
-                          {loc.name}
-                          {loc.isPrivate ? ' (account-only)' : ''}
+                          {locationLabel(loc)}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  {isLocationsError && (
+                  {isLocationsError ? (
                     <p className="text-destructive text-xs dark:text-red-400">
-                      Couldn&apos;t load locations — basin will be created in
-                      your account default.
+                      Couldn&apos;t load locations — basin will be created in{' '}
+                      {locationSelection === DEFAULT_LOCATION_VALUE
+                        ? 'your account default'
+                        : locationSelection}
+                      .
+                    </p>
+                  ) : (
+                    <p className="text-muted-foreground text-xs">
+                      Choose the location closest to your clients for the lowest
+                      latency. This is immutable per basin.
                     </p>
                   )}
+                </div>
+              )}
+              {!isCreating && capabilities.locations && data.location && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="location">Location</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="text-muted-foreground h-4 w-4" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p>
+                          A basin&apos;s location is fixed at creation. To use a
+                          different location, create a new basin there.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Input
+                    id="location"
+                    type="text"
+                    value={data.location}
+                    readOnly
+                    disabled
+                  />
                 </div>
               )}
               <fieldset className="rounded-lg border p-4">
