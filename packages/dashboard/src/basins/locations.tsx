@@ -17,7 +17,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '../ui/tooltip';
-import { Info } from 'lucide-react';
 import { getDefaultLocation, listLocations, setDefaultLocation } from './api';
 import { useDashboardHost } from './dashboard-host';
 
@@ -102,29 +101,31 @@ export function DefaultLocationControl(): JSX.Element | null {
     <div className="text-muted-foreground flex items-center gap-2 text-sm">
       <span className="hidden sm:inline">
         Default{' '}
-        <a
-          href={LOCATIONS_DOCS}
-          target="_blank"
-          rel="noreferrer"
-          className="hover:text-foreground underline decoration-dotted underline-offset-4"
-        >
-          location
-        </a>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="hover:text-foreground cursor-help underline decoration-dotted underline-offset-4">
+                location
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              <p>
+                Used for new basins that don&apos;t pick a location. Existing
+                basins keep theirs.
+              </p>
+              <a
+                href={LOCATIONS_DOCS}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1 block underline underline-offset-2"
+              >
+                Read more about locations
+              </a>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         :
       </span>
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Info className="h-4 w-4" />
-          </TooltipTrigger>
-          <TooltipContent className="max-w-xs">
-            <p>
-              Used for new basins that don&apos;t pick a location. Existing
-              basins keep theirs.
-            </p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
       <Select
         value={defaultLocation?.name ?? ''}
         onValueChange={(value) => void handleChange(value)}
