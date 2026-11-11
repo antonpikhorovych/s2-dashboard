@@ -159,12 +159,25 @@ it('ignores a late one-shot read after changing streams', async () => {
   expect(recordView.addRecord).not.toHaveBeenCalled();
 });
 
+it('does not read when the start position is invalid', async () => {
+  renderDashboard(<Studio />, { route: route('basin-a') });
+  const user = userEvent.setup();
+  await screen.findByPlaceholderText('base64 key');
+  await user.click(screen.getByRole('button', { name: /Read settings/ }));
+  const startValue = screen.getByPlaceholderText('10');
+  await user.clear(startValue);
+  await user.type(startValue, 'abc');
+  await screen.findByText('Tail offset must be a whole number.');
+  await user.click(screen.getByRole('button', { name: 'Read Once' }));
+  expect(api.readStreamBatch).not.toHaveBeenCalled();
+});
+
 it('does not append when a supplied match sequence is invalid', async () => {
   renderDashboard(<Studio />, { route: route('basin-a') });
   const user = userEvent.setup();
   await screen.findByPlaceholderText('base64 key');
-  await user.click(screen.getByRole('tab', { name: 'Append' }));
   await user.type(screen.getByPlaceholderText('single record body'), 'payload');
+  await user.click(screen.getByRole('button', { name: /Concurrency/ }));
   await user.type(
     screen.getByRole('textbox', { name: 'Match sequence number' }),
     '123abc'
@@ -181,13 +194,30 @@ it('does not append when a supplied match sequence is invalid', async () => {
   expect(api.appendToStream).not.toHaveBeenCalled();
 });
 
+it('sends the session fencing token with an append', async () => {
+  renderDashboard(<Studio />, { route: route('basin-a') });
+  const user = userEvent.setup();
+  await screen.findByPlaceholderText('base64 key');
+  await user.type(screen.getByLabelText('Fencing token'), 'tok-1');
+  await user.type(screen.getByPlaceholderText('single record body'), 'payload');
+  await user.click(screen.getByRole('button', { name: 'Append' }));
+  await waitFor(() =>
+    expect(api.appendToStream).toHaveBeenCalledWith(
+      expect.anything(),
+      'basin-a',
+      'events',
+      expect.objectContaining({ fencingToken: 'tok-1' }),
+      undefined
+    )
+  );
+});
+
 it.each(['json', 'jsonl'])(
   'loads text as one body after a %s file',
   async (extension) => {
     renderDashboard(<Studio />, { route: route('basin-a') });
     const user = userEvent.setup();
     await screen.findByPlaceholderText('base64 key');
-    await user.click(screen.getByRole('tab', { name: 'Append' }));
     const input = screen.getByLabelText('Load file');
     fireEvent.change(input, {
       target: {

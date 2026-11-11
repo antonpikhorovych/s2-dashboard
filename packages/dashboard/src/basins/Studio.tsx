@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type ReactNode,
 } from 'react';
 import {
   AppendAck,
@@ -37,7 +38,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import {
   Tooltip,
   TooltipContent,
@@ -49,11 +49,11 @@ import {
   Copy,
   Check,
   Calendar as CalendarIcon,
+  ChevronDown,
   Eye,
   EyeOff,
   ExternalLink,
   Eraser,
-  KeyRound,
   Loader2,
   Paperclip,
   Play,
@@ -100,6 +100,11 @@ const STUDIO_DOCS = {
   limits: 'https://s2.dev/docs/platform/limits',
 } as const;
 
+const BODY = 'text-[14px] leading-5';
+const LABEL = 'text-[12px] leading-4 text-muted-foreground';
+const HEADING = 'text-[14px] leading-5 font-semibold';
+const CONTROL = 'text-[13px] leading-5';
+
 function DocsLink({
   href,
   label,
@@ -115,7 +120,7 @@ function DocsLink({
       target="_blank"
       rel="noreferrer noopener"
       className={cn(
-        'text-muted-foreground decoration-muted-foreground/40 hover:text-foreground inline-flex items-center gap-1 text-[11px] underline decoration-dotted underline-offset-2 transition-colors',
+        'text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-[12px] whitespace-nowrap underline decoration-dotted underline-offset-2 transition-colors',
         className
       )}
     >
@@ -161,13 +166,6 @@ function formatPosition(position?: StreamPosition): string {
   return `#${position.seqNum} @ ${formatUTCDateTime(position.timestamp)}`;
 }
 
-function formatCompactPosition(position?: StreamPosition): string {
-  if (!position) {
-    return 'n/a';
-  }
-  return `#${position.seqNum}`;
-}
-
 function pad2(value: number): string {
   return String(value).padStart(2, '0');
 }
@@ -202,6 +200,184 @@ function decodeQueryParam(value: string): string {
   }
 }
 
+interface StudioFieldProps {
+  label: string;
+  hint?: ReactNode;
+  htmlFor?: string;
+  error?: string;
+  children: ReactNode;
+}
+
+function StudioField({
+  label,
+  hint,
+  htmlFor,
+  error,
+  children,
+}: StudioFieldProps) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={htmlFor} className={cn(LABEL, 'block w-fit')}>
+        {label}
+      </Label>
+      {children}
+      {error ? (
+        <p className={cn(LABEL, 'text-destructive')}>{error}</p>
+      ) : (
+        hint && <p className={LABEL}>{hint}</p>
+      )}
+    </div>
+  );
+}
+
+function StudioSection({
+  title,
+  summary,
+  error,
+  children,
+}: {
+  title: string;
+  summary?: string;
+  error?: string;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  // The fields show their own errors once the section is open.
+  const caption = open ? summary : (error ?? summary);
+  return (
+    <div>
+      <button
+        type="button"
+        className="flex w-full items-center justify-between gap-2 text-left"
+        aria-expanded={open}
+        onClick={() => setOpen((prev) => !prev)}
+      >
+        <span className="flex min-w-0 items-baseline gap-2">
+          <span className={cn(LABEL, 'font-medium')}>{title}</span>
+          {caption && (
+            <span
+              className={cn(
+                LABEL,
+                'truncate tabular-nums',
+                !open && error ? 'text-destructive' : 'text-muted-foreground/70'
+              )}
+            >
+              {caption}
+            </span>
+          )}
+        </span>
+        <ChevronDown
+          className={cn(
+            'text-muted-foreground h-3.5 w-3.5 shrink-0 transition-transform',
+            open && 'rotate-180'
+          )}
+        />
+      </button>
+      {open && <div className="space-y-3 pt-3">{children}</div>}
+    </div>
+  );
+}
+
+function CopyIconButton({
+  label,
+  copied,
+  onClick,
+}: {
+  label: string;
+  copied: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="text-muted-foreground h-8 w-8 rounded-sm"
+          aria-label={label}
+          onClick={onClick}
+        >
+          {copied ? (
+            <Check className="h-3 w-3" />
+          ) : (
+            <Copy className="h-3 w-3" />
+          )}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent className="text-xs">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function PositionRows({
+  rows,
+}: {
+  rows: Array<[string, StreamPosition | undefined]>;
+}) {
+  return (
+    <div className="space-y-0.5 text-[11px] tabular-nums">
+      {rows.map(([label, position]) => (
+        <div key={label} className="flex justify-between gap-3">
+          <span className={LABEL}>{label}</span>
+          <span className="text-muted-foreground">
+            {formatPosition(position)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function parseAppendRecords(
+  mode: AppendInputMode,
+  payload: string
+): StudioAppendRecordInput[] {
+  if (!payload.trim()) {
+    throw new Error('Append payload cannot be empty');
+  }
+
+  if (mode === 'single') {
+    return [{ body: payload }];
+  }
+
+  if (mode === 'lines') {
+    return payload
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => ({ body: line }));
+  }
+
+  const parsed = JSON.parse(payload) as unknown;
+  if (!Array.isArray(parsed)) {
+    throw new Error('JSON array mode requires an array payload');
+  }
+
+  return parsed.map((item, index) => {
+    if (typeof item === 'string') {
+      return { body: item };
+    }
+
+    if (!item || typeof item !== 'object') {
+      throw new Error(`Invalid record at index ${index}`);
+    }
+
+    const body = (item as { body?: unknown }).body;
+    if (typeof body !== 'string') {
+      throw new Error(`Record ${index} must include a string body`);
+    }
+
+    return {
+      body,
+      headers: parseHeaders((item as { headers?: unknown }).headers),
+      timestamp: parseRecordTimestamp(
+        (item as { timestamp?: unknown }).timestamp,
+        index
+      ),
+    };
+  });
+}
+
 export default function Studio(): JSX.Element {
   const { scopeKey, route } = useDashboardHost();
   // Hosts may reuse the view across routes. Do not carry reads, keys or pending
@@ -216,7 +392,8 @@ function StudioSession(): JSX.Element | null {
   const basinId = route.basinId ?? '';
 
   const [selectedStream, setSelectedStream] = useState('');
-  const [activeTab, setActiveTab] = useState('read');
+  const [concurrencyOpen, setConcurrencyOpen] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(true);
 
   const [readStartMode, setReadStartMode] =
     useState<ReadStartMode>('tailOffset');
@@ -235,7 +412,7 @@ function StudioSession(): JSX.Element | null {
   const [appendMode, setAppendMode] = useState<AppendInputMode>('single');
   const [appendPayload, setAppendPayload] = useState('');
   const [appendMatchSeqNum, setAppendMatchSeqNum] = useState('');
-  const [appendFencingToken, setAppendFencingToken] = useState('');
+  const [fencingToken, setFencingToken] = useState('');
   const [appending, setAppending] = useState(false);
   const [lastAppendAck, setLastAppendAck] = useState<AppendAck | null>(null);
   const [tailInfo, setTailInfo] = useState<StreamPosition | undefined>(
@@ -389,41 +566,39 @@ function StudioSession(): JSX.Element | null {
     );
   };
 
+  const readStartError = useMemo((): string | null => {
+    const trimmed = readFromValue.trim();
+    if (readStartMode === 'tailOffset') {
+      if (!trimmed) return null;
+      return /^-?\d+$/.test(trimmed)
+        ? null
+        : 'Tail offset must be a whole number.';
+    }
+    if (readStartMode === 'seqNum') {
+      return /^\d+$/.test(trimmed)
+        ? null
+        : 'Sequence number must be a non-negative integer.';
+    }
+    return parseUTCTimestamp(trimmed)
+      ? null
+      : 'Use an ISO date/time (UTC unless an offset is given).';
+  }, [readFromValue, readStartMode]);
+
   const buildReadInput = useCallback((): ReadInput | null => {
+    if (readStartError) {
+      return null;
+    }
+
     const trimmed = readFromValue.trim();
     let readFrom: ReadFrom;
 
     if (readStartMode === 'tailOffset') {
-      const parsed = Number.parseInt(trimmed || '10', 10);
-      if (Number.isNaN(parsed)) {
-        toast({
-          title: 'Invalid tail offset',
-          description: 'Tail offset must be an integer.',
-          variant: 'destructive',
-        });
-        return null;
-      }
-      readFrom = { tailOffset: Math.abs(parsed) };
+      readFrom = { tailOffset: Math.abs(Number.parseInt(trimmed || '10', 10)) };
     } else if (readStartMode === 'seqNum') {
-      const parsed = Number.parseInt(trimmed, 10);
-      if (Number.isNaN(parsed) || parsed < 0) {
-        toast({
-          title: 'Invalid sequence number',
-          description: 'Sequence number must be a non-negative integer.',
-          variant: 'destructive',
-        });
-        return null;
-      }
-      readFrom = { seqNum: parsed };
+      readFrom = { seqNum: Number(trimmed) };
     } else {
       const parsed = parseUTCTimestamp(trimmed);
       if (!parsed) {
-        toast({
-          title: 'Invalid timestamp',
-          description:
-            'Use an ISO date/time value (UTC unless an offset is given).',
-          variant: 'destructive',
-        });
         return null;
       }
       readFrom = { timestamp: parsed };
@@ -462,6 +637,7 @@ function StudioSession(): JSX.Element | null {
     readClamp,
     readFromValue,
     readLimitCount,
+    readStartError,
     readStartMode,
     readWaitSecs,
   ]);
@@ -493,7 +669,7 @@ function StudioSession(): JSX.Element | null {
     setStreamStartedAtMs(null);
     setLastRecordAtMs(null);
     setAppendMatchSeqNum('');
-    setAppendFencingToken('');
+    setFencingToken('');
     setTrimConfirmSeqNum(null);
     setTrimSeqNum('');
     setNextFenceToken('');
@@ -799,60 +975,12 @@ function StudioSession(): JSX.Element | null {
     }
   };
 
-  const parseAppendRecords = (): StudioAppendRecordInput[] => {
-    const text = appendPayload.trim();
-    if (!text) {
-      throw new Error('Append payload cannot be empty');
-    }
-
-    if (appendMode === 'single') {
-      return [{ body: appendPayload }];
-    }
-
-    if (appendMode === 'lines') {
-      const lines = appendPayload
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean);
-      return lines.map((line) => ({ body: line }));
-    }
-
-    const parsed = JSON.parse(appendPayload) as unknown;
-    if (!Array.isArray(parsed)) {
-      throw new Error('JSON array mode requires an array payload');
-    }
-
-    return parsed.map((item, index) => {
-      if (typeof item === 'string') {
-        return { body: item };
-      }
-
-      if (!item || typeof item !== 'object') {
-        throw new Error(`Invalid record at index ${index}`);
-      }
-
-      const body = (item as { body?: unknown }).body;
-      if (typeof body !== 'string') {
-        throw new Error(`Record ${index} must include a string body`);
-      }
-
-      return {
-        body,
-        headers: parseHeaders((item as { headers?: unknown }).headers),
-        timestamp: parseRecordTimestamp(
-          (item as { timestamp?: unknown }).timestamp,
-          index
-        ),
-      };
-    });
-  };
-
   const buildAppendInput = (): StudioAppendInput => {
     const matchSeqNum = parseMatchSeqNum(appendMatchSeqNum);
     return {
-      records: parseAppendRecords(),
+      records: parseAppendRecords(appendMode, appendPayload),
       matchSeqNum,
-      fencingToken: appendFencingToken.trim() || undefined,
+      fencingToken: fencingToken.trim() || undefined,
     };
   };
 
@@ -983,7 +1111,7 @@ function StudioSession(): JSX.Element | null {
         basinId,
         selectedStream,
         seqNum,
-        appendFencingToken.trim() || undefined,
+        fencingToken.trim() || undefined,
         encryptionKey.trim() || undefined
       );
       if (signal.aborted) return;
@@ -1039,7 +1167,7 @@ function StudioSession(): JSX.Element | null {
         basinId,
         selectedStream,
         nextFenceToken.trim(),
-        appendFencingToken.trim() || undefined,
+        fencingToken.trim() || undefined,
         encryptionKey.trim() || undefined
       );
       if (signal.aborted) return;
@@ -1048,7 +1176,7 @@ function StudioSession(): JSX.Element | null {
         title: 'Fence command submitted',
         description: `Fencing token set to "${nextFenceToken.trim()}".`,
       });
-      setAppendFencingToken(nextFenceToken.trim());
+      setFencingToken(nextFenceToken.trim());
       setNextFenceToken('');
       void refreshTail();
     } catch (error) {
@@ -1111,228 +1239,422 @@ function StudioSession(): JSX.Element | null {
     setReadFromValue(toUTCDateTimeValue(next));
   };
 
+  const readStartLabel =
+    readStartMode === 'tailOffset'
+      ? `tail -${readFromValue.trim() || '10'}`
+      : readStartMode === 'seqNum'
+        ? `seq ${readFromValue.trim() || '0'}`
+        : formatTimestampDisplay(readFromValue.trim());
+
+  const readSummary = [
+    readStartLabel,
+    readLimitCount.trim() ? `limit ${readLimitCount.trim()}` : null,
+    readWaitSecs.trim() ? `wait ${readWaitSecs.trim()}s` : null,
+    ignoreCommandRecords ? 'data only' : null,
+    readClamp ? null : 'no clamp',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  const appendPreview = useMemo(() => {
+    if (!appendPayload.trim()) {
+      return null;
+    }
+    try {
+      return { count: parseAppendRecords(appendMode, appendPayload).length };
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : 'Invalid payload',
+      };
+    }
+  }, [appendMode, appendPayload]);
+
   if (!basinId) {
     return null;
   }
 
   return (
-    <section className="flex w-full flex-1 flex-col gap-2 pt-4">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <BasinCombobox
-          value={basinId}
-          onValueChange={(value) => {
-            navigate(`/dashboard/basins/${encodeURIComponent(value)}/studio`);
-          }}
-        />
-
-        <StreamCombobox
-          basinId={basinId}
-          value={selectedStream}
-          onValueChange={(value) => {
-            setSelectedStream(value);
-            updateStreamInUrl(value);
-          }}
-        />
-
-        {selectedStream && (
-          <div className="text-muted-foreground order-3 flex w-full min-w-0 items-center gap-x-2 text-xs sm:order-none sm:flex-1">
-            <button
-              className="group/uri hover:bg-muted flex min-w-0 shrink items-center gap-1 rounded px-1 py-0.5 transition-colors"
-              onClick={async () => {
-                const uri = `s2://${basinId}/${selectedStream}`;
-                try {
-                  await navigator.clipboard.writeText(uri);
-                  setUriCopied(true);
-                  setTimeout(() => setUriCopied(false), 1500);
-                } catch {
-                  // ignore
-                }
+    <TooltipProvider delayDuration={150}>
+      <section className="flex w-full flex-1 flex-col gap-4 pt-4">
+        <header className="flex flex-wrap items-center gap-x-2 gap-y-2 pb-1">
+          <div className="border-border/50 flex h-7 items-center overflow-hidden rounded-sm border">
+            <BasinCombobox
+              value={basinId}
+              className="hover:bg-muted h-7 w-[132px] rounded-none border-0 bg-transparent px-2 text-[12px] sm:w-[146px]"
+              onValueChange={(value) => {
+                navigate(
+                  `/dashboard/basins/${encodeURIComponent(value)}/studio`
+                );
               }}
-              title={`Copy s2://${basinId}/${selectedStream}`}
-            >
-              <span className="hidden truncate font-mono sm:inline">
-                s2://{basinId}/{selectedStream}
-              </span>
-              {uriCopied ? (
-                <Check className="h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400" />
-              ) : (
-                <Copy className="h-3 w-3 shrink-0 opacity-0 transition-opacity group-hover/uri:opacity-100" />
-              )}
-            </button>
-            <span className="text-muted-foreground/30 shrink-0">&middot;</span>
-            <span
-              className={cn(
-                'shrink-0',
-                selectedStreamInfo?.deletedAt
-                  ? 'text-destructive'
-                  : 'text-emerald-600 dark:text-emerald-400'
-              )}
-            >
-              {selectedStreamInfo?.deletedAt ? 'deleting' : 'active'}
-            </span>
-            <span className="text-muted-foreground/30 shrink-0 lg:inline">
-              &middot;
-            </span>
-            <span className="shrink-0 font-mono lg:hidden">
-              tail {formatCompactPosition(tailInfo)}
-            </span>
-            <span className="hidden min-w-0 truncate font-mono lg:inline">
-              tail {formatPosition(tailInfo)}
-            </span>
-          </div>
-        )}
-
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 p-0 sm:ml-auto"
-          onClick={() => {
-            void refetchStreams();
-            if (selectedStream) void refetchSelectedStream();
-            void refreshTail();
-          }}
-          disabled={tailLoading}
-        >
-          {tailLoading ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <RefreshCw className="h-3.5 w-3.5" />
-          )}
-        </Button>
-
-        <DocsLink
-          href={STUDIO_DOCS.studio}
-          label="Studio docs"
-          className="sm:ml-1"
-        />
-      </div>
-
-      {selectedStream && selectedStreamInfo?.cipher && (
-        <div className="border-border/40 bg-muted/20 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border px-2 py-1.5">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="text-muted-foreground flex items-center gap-1.5 text-[11px]">
-                  <KeyRound className="h-3 w-3" />
-                  <span className="decoration-muted-foreground/40 underline decoration-dotted underline-offset-2">
-                    Encryption key
-                  </span>
-                  <span className="rounded border px-1.5 py-0 font-mono text-[10px]">
-                    {selectedStreamInfo.cipher}
-                  </span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-[280px] text-xs">
-                Base64-encoded key material sent as the{' '}
-                <code className="font-mono">s2-encryption-key</code> header on
-                append and read requests. Key stays in this browser session
-                only.
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <div className="flex min-w-0 flex-1 items-center gap-1">
-            <Input
-              type={showEncryptionKey ? 'text' : 'password'}
-              className="border-border/50 h-7 flex-1 font-mono text-xs"
-              value={encryptionKey}
-              onChange={(e) => setEncryptionKey(e.target.value)}
-              placeholder="base64 key"
-              autoComplete="new-password"
-              data-lpignore="true"
-              data-1p-ignore
-              spellCheck={false}
             />
+            <span
+              aria-hidden
+              className="border-border/60 h-full shrink-0 border-l border-dotted"
+            />
+            <StreamCombobox
+              basinId={basinId}
+              value={selectedStream}
+              className="hover:bg-muted h-7 w-[150px] rounded-none border-0 bg-transparent px-2 text-[12px] sm:w-[180px]"
+              onValueChange={(value) => {
+                setSelectedStream(value);
+                updateStreamInUrl(value);
+              }}
+            />
+          </div>
+          {selectedStream && (
+            <>
+              <button
+                className="group/uri hover:bg-muted flex min-w-0 shrink items-center gap-1 rounded px-1 py-0.5 text-[12px] transition-colors"
+                onClick={async () => {
+                  const uri = `s2://${basinId}/${selectedStream}`;
+                  try {
+                    await navigator.clipboard.writeText(uri);
+                    setUriCopied(true);
+                    setTimeout(() => setUriCopied(false), 1500);
+                  } catch {
+                    return;
+                  }
+                }}
+                title={`Copy s2://${basinId}/${selectedStream}`}
+              >
+                <span className="text-muted-foreground truncate">
+                  s2://{basinId}/{selectedStream}
+                </span>
+                {uriCopied ? (
+                  <Check className="h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                ) : (
+                  <Copy className="h-3 w-3 shrink-0 opacity-60 transition-opacity group-hover/uri:opacity-100" />
+                )}
+              </button>
+              <span
+                className={cn(
+                  'h-1.5 w-1.5 shrink-0 rounded-full',
+                  selectedStreamInfo?.deletedAt
+                    ? 'bg-destructive'
+                    : 'bg-emerald-500'
+                )}
+              />
+              <span className={cn(LABEL, 'sr-only')}>
+                {selectedStreamInfo?.deletedAt ? 'deleting' : 'active'}
+              </span>
+            </>
+          )}
+          <div className="ml-auto flex items-center gap-3">
+            <span className="text-muted-foreground/70 text-[12px] whitespace-nowrap tabular-nums">
+              {formatPosition(tailInfo)}
+            </span>
             <Button
-              type="button"
               variant="ghost"
               size="icon"
-              className="text-muted-foreground h-7 w-7"
-              onClick={() => setShowEncryptionKey((prev) => !prev)}
-              title={showEncryptionKey ? 'Hide key' : 'Show key'}
+              className="text-muted-foreground h-8 w-8 rounded-sm"
+              aria-label="Refresh streams and tail"
+              onClick={() => {
+                void refetchStreams();
+                if (selectedStream) void refetchSelectedStream();
+                void refreshTail();
+              }}
+              disabled={tailLoading}
             >
-              {showEncryptionKey ? (
-                <EyeOff className="h-3.5 w-3.5" />
+              {tailLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
-                <Eye className="h-3.5 w-3.5" />
+                <RefreshCw className="h-3.5 w-3.5" />
               )}
             </Button>
-            {encryptionKey && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="text-muted-foreground h-7 w-7"
-                onClick={() => setEncryptionKey('')}
-                title="Clear key"
-              >
-                <Eraser className="h-3.5 w-3.5" />
-              </Button>
-            )}
+            <DocsLink href={STUDIO_DOCS.studio} label="Studio docs" />
           </div>
-        </div>
-      )}
+        </header>
 
-      {isLoadingStreams ? (
-        <div className="flex h-32 items-center justify-center">
-          <Loader2 className="h-5 w-5 animate-spin" />
-        </div>
-      ) : streams.length === 0 ? (
-        <EmptyList
-          title="No streams yet"
-          description="Create a stream from the basin page to get started."
-          cta={{
-            label: 'Go to Streams',
-            onClick: () =>
-              navigate(`/dashboard/basins/${encodeURIComponent(basinId)}`),
-          }}
-        />
-      ) : (
-        <>
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="w-full">
-              <TabsTrigger className="w-full" value="read">
-                Read
-              </TabsTrigger>
-              <TabsTrigger className="w-full" value="append">
-                Append
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent
-              value="read"
-              forceMount
-              className={cn('mt-2', activeTab !== 'read' && 'hidden')}
-            >
-              <div className="grid gap-3 xl:h-[calc(100vh-200px)] xl:grid-cols-[260px_1fr]">
-                <div className="border-border/50 flex flex-col overflow-y-auto rounded-lg border">
-                  <div className="space-y-2.5 p-3">
-                    <div className="flex items-center justify-between pb-0.5">
-                      <span className="text-muted-foreground/60 text-[11px] font-medium tracking-wider uppercase">
-                        Read settings
+        {isLoadingStreams ? (
+          <div className="flex h-40 items-center justify-center">
+            <Loader2 className="h-5 w-5 animate-spin" />
+          </div>
+        ) : streams.length === 0 ? (
+          <EmptyList
+            title="No streams yet"
+            description="Create a stream from the basin page to get started."
+            cta={{
+              label: 'Go to Streams',
+              onClick: () =>
+                navigate(`/dashboard/basins/${encodeURIComponent(basinId)}`),
+            }}
+          />
+        ) : (
+          <>
+            <div className="grid gap-4 lg:h-[calc(100dvh_-_190px)] lg:min-h-[520px] lg:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="border-border/50 flex h-[55vh] min-h-0 flex-col overflow-hidden rounded-lg border lg:h-auto">
+                <div className="bg-muted/60 flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2">
+                  <div className="flex min-w-0 items-baseline gap-2">
+                    <span className={HEADING}>Records</span>
+                    <span className={cn(LABEL, 'tabular-nums')}>
+                      {recordsReceived}{' '}
+                      {recordsReceived === 1 ? 'record' : 'records'} &middot;{' '}
+                      {recordsPerSecond}/s
+                    </span>
+                    {isStreaming && (
+                      <span
+                        className={cn(
+                          LABEL,
+                          'text-emerald-600 dark:text-emerald-400'
+                        )}
+                      >
+                        streaming
                       </span>
-                      <DocsLink href={STUDIO_DOCS.reads} label="Read docs" />
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      CONTROL,
+                      'text-muted-foreground h-8 gap-1 rounded-sm px-2'
+                    )}
+                    onClick={() => recordViewRef.current?.clear()}
+                  >
+                    <Eraser className="h-3 w-3" />
+                    Clear
+                  </Button>
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-hidden">
+                  <RecordView ref={recordViewRef} />
+                </div>
+
+                <div className="border-border/40 shrink-0 border-t">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-4 py-3">
+                    <button
+                      type="button"
+                      className={cn(
+                        LABEL,
+                        'hover:text-foreground inline-flex items-center gap-1'
+                      )}
+                      aria-expanded={composerOpen}
+                      onClick={() => setComposerOpen((prev) => !prev)}
+                    >
+                      Payload
+                      <ChevronDown
+                        className={cn(
+                          'h-3 w-3 transition-transform',
+                          composerOpen && 'rotate-180'
+                        )}
+                      />
+                    </button>
+                    <Select
+                      value={appendMode}
+                      onValueChange={(v) => setAppendMode(v as AppendInputMode)}
+                    >
+                      <SelectTrigger
+                        aria-label="Input mode"
+                        className={cn(
+                          CONTROL,
+                          'h-8 w-auto gap-1 rounded-sm px-2'
+                        )}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="single">Single body</SelectItem>
+                        <SelectItem value="lines">
+                          One record per line
+                        </SelectItem>
+                        <SelectItem value="json-array">JSON array</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <label
+                      className={cn(
+                        CONTROL,
+                        'text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 transition-colors'
+                      )}
+                    >
+                      <Paperclip className="h-3 w-3" />
+                      <span>Load file</span>
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept=".txt,.json,.jsonl,.ndjson"
+                        onChange={(e) => void onAppendFileSelected(e)}
+                      />
+                    </label>
+                    <Popover
+                      open={concurrencyOpen}
+                      onOpenChange={setConcurrencyOpen}
+                    >
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className={cn(
+                            CONTROL,
+                            'text-muted-foreground h-8 gap-1 rounded-sm px-2 font-normal'
+                          )}
+                          aria-expanded={concurrencyOpen}
+                        >
+                          Concurrency
+                          {appendMatchSeqNum.trim() &&
+                            ` \u00b7 seq ${appendMatchSeqNum.trim()}`}
+                          <ChevronDown className="h-3 w-3" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-72 p-3">
+                        <StudioField
+                          label="Match sequence number"
+                          htmlFor="append-match-seq"
+                          hint="Only appends if the stream tail matches this sequence number."
+                        >
+                          <Input
+                            id="append-match-seq"
+                            aria-label="Match sequence number"
+                            className={cn(CONTROL, 'h-8 rounded-sm')}
+                            value={appendMatchSeqNum}
+                            onChange={(e) =>
+                              setAppendMatchSeqNum(e.target.value)
+                            }
+                            placeholder="optional"
+                          />
+                        </StudioField>
+                      </PopoverContent>
+                    </Popover>
+                    {appendPreview ? (
+                      'error' in appendPreview ? (
+                        <span
+                          className={cn(LABEL, 'text-destructive truncate')}
+                        >
+                          {appendPreview.error}
+                        </span>
+                      ) : (
+                        <span className={cn(LABEL, 'tabular-nums')}>
+                          {appendPreview.count}{' '}
+                          {appendPreview.count === 1 ? 'record' : 'records'}
+                        </span>
+                      )
+                    ) : null}
+                    <div className="ml-auto flex items-center gap-1">
+                      <CopyIconButton
+                        label="Copy append as curl"
+                        copied={appendCurlCopied}
+                        onClick={() => void copyAppendCurl()}
+                      />
+                      <Button
+                        size="sm"
+                        className={cn(CONTROL, 'h-8 gap-1.5 rounded-sm')}
+                        onClick={() => void handleAppend()}
+                        disabled={
+                          appending ||
+                          Boolean(appendPreview && 'error' in appendPreview)
+                        }
+                      >
+                        {appending ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Send className="h-3.5 w-3.5" />
+                        )}
+                        Append
+                      </Button>
                     </div>
-                    <TooltipProvider>
-                      <div className="space-y-1">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Label className="text-muted-foreground decoration-muted-foreground/40 w-fit cursor-default text-[11px] underline decoration-dotted underline-offset-2">
-                              Start from
-                            </Label>
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-[220px] text-xs">
-                            Choose how to anchor the read position: relative
-                            from tail, absolute sequence number, or a specific
-                            timestamp.
-                          </TooltipContent>
-                        </Tooltip>
+                  </div>
+                  {composerOpen && (
+                    <textarea
+                      className={cn(
+                        BODY,
+                        'bg-background placeholder:text-muted-foreground dark:bg-input/30 h-28 w-full resize-y border-0 px-4 py-3 font-mono text-[13px] focus:ring-0 focus:outline-none'
+                      )}
+                      value={appendPayload}
+                      onChange={(e) => setAppendPayload(e.target.value)}
+                      placeholder={
+                        appendMode === 'json-array'
+                          ? '[{"body":"hello","headers":{"source":"studio"}}]'
+                          : appendMode === 'lines'
+                            ? 'first line\nsecond line'
+                            : 'single record body'
+                      }
+                    />
+                  )}
+                  {lastAppendAck && (
+                    <div className="px-4 py-2">
+                      <PositionRows
+                        rows={[
+                          ['start', lastAppendAck.start],
+                          ['end', lastAppendAck.end],
+                          ['tail', lastAppendAck.tail],
+                        ]}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <aside className="border-border/50 flex min-h-0 flex-col overflow-hidden rounded-lg border">
+                <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-4">
+                  <div className="space-y-3">
+                    <h2 className={HEADING}>Read</h2>
+                    <div className="flex items-center gap-1">
+                      {isStreaming ? (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className={cn(
+                            CONTROL,
+                            'h-8 flex-1 gap-1.5 rounded-sm'
+                          )}
+                          onClick={() => void stopStreaming()}
+                        >
+                          <Square className="h-3 w-3" />
+                          Stop
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          className={cn(
+                            CONTROL,
+                            'h-8 flex-1 gap-1.5 rounded-sm'
+                          )}
+                          onClick={() => void startStreaming()}
+                        >
+                          <Play className="h-3 w-3" />
+                          Stream
+                        </Button>
+                      )}
+                      <CopyIconButton
+                        label="Copy stream as curl"
+                        copied={streamCurlCopied}
+                        onClick={() => void copyCurl(true)}
+                      />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className={cn(CONTROL, 'h-8 flex-1 rounded-sm')}
+                        onClick={() => void readOnce()}
+                        disabled={isStreaming}
+                      >
+                        Read Once
+                      </Button>
+                      <CopyIconButton
+                        label="Copy read as curl"
+                        copied={readCurlCopied}
+                        onClick={() => void copyCurl(false)}
+                      />
+                    </div>
+                    <StudioSection
+                      title="Read settings"
+                      summary={readSummary}
+                      error={readStartError ?? undefined}
+                    >
+                      <StudioField
+                        label="Start from"
+                        htmlFor="read-start-mode"
+                        hint="Choose how to anchor the read position: relative from tail, absolute sequence number, or a specific timestamp."
+                      >
                         <Select
                           value={readStartMode}
                           onValueChange={(v) =>
                             setReadStartMode(v as ReadStartMode)
                           }
                         >
-                          <SelectTrigger className="border-border/50 h-8">
+                          <SelectTrigger
+                            id="read-start-mode"
+                            className={cn(CONTROL, 'h-8 rounded-sm')}
+                          >
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -1345,33 +1667,37 @@ function StudioSession(): JSX.Element | null {
                             <SelectItem value="timestamp">Timestamp</SelectItem>
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div className="space-y-1">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Label className="text-muted-foreground decoration-muted-foreground/40 w-fit cursor-default text-[11px] underline decoration-dotted underline-offset-2">
-                              {readStartMode === 'tailOffset'
-                                ? 'Tail offset'
-                                : readStartMode === 'seqNum'
-                                  ? 'Sequence number'
-                                  : 'Timestamp (UTC)'}
-                            </Label>
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-[220px] text-xs">
-                            {readStartMode === 'tailOffset'
-                              ? 'Number of records back from the stream tail to start reading (e.g. 10 = last 10 records).'
-                              : readStartMode === 'seqNum'
-                                ? 'Absolute sequence number of the first record to read. Must be a non-negative integer.'
-                                : 'Start reading from the first record at or after this UTC timestamp.'}
-                          </TooltipContent>
-                        </Tooltip>
+                      </StudioField>
+                      <StudioField
+                        label={
+                          readStartMode === 'tailOffset'
+                            ? 'Tail offset'
+                            : readStartMode === 'seqNum'
+                              ? 'Sequence number'
+                              : 'Timestamp (UTC)'
+                        }
+                        htmlFor={
+                          readStartMode === 'timestamp'
+                            ? undefined
+                            : 'read-start-value'
+                        }
+                        hint={
+                          readStartMode === 'tailOffset'
+                            ? 'Number of records back from the stream tail to start reading (e.g. 10 = last 10 records).'
+                            : readStartMode === 'seqNum'
+                              ? 'Absolute sequence number of the first record to read. Must be a non-negative integer.'
+                              : 'Start reading from the first record at or after this UTC timestamp.'
+                        }
+                        error={readStartError ?? undefined}
+                      >
                         {readStartMode === 'timestamp' ? (
                           <Popover>
                             <PopoverTrigger asChild>
                               <Button
                                 variant="outline"
                                 className={cn(
-                                  'border-border/50 h-8 w-full justify-between px-3 text-left font-normal',
+                                  BODY,
+                                  'h-8 w-full justify-between px-2 text-left font-normal',
                                   !timestampDate && 'text-muted-foreground'
                                 )}
                               >
@@ -1395,14 +1721,14 @@ function StudioSession(): JSX.Element | null {
                               <div className="border-border/40 flex items-center gap-2 border-t p-2">
                                 <Label
                                   htmlFor="read-timestamp-time"
-                                  className="text-muted-foreground text-[11px]"
+                                  className={LABEL}
                                 >
                                   Time (UTC)
                                 </Label>
                                 <Input
                                   id="read-timestamp-time"
                                   type="time"
-                                  className="border-border/50 h-8"
+                                  className={cn(CONTROL, 'h-8 rounded-sm')}
                                   value={timestampTimeValue}
                                   onChange={(e) =>
                                     handleTimestampTimeChange(e.target.value)
@@ -1411,7 +1737,7 @@ function StudioSession(): JSX.Element | null {
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="h-8 px-2 text-xs"
+                                  className={cn(CONTROL, 'h-8 rounded-sm px-2')}
                                   onClick={() =>
                                     setReadFromValue(
                                       toUTCDateTimeValue(new Date())
@@ -1425,7 +1751,8 @@ function StudioSession(): JSX.Element | null {
                           </Popover>
                         ) : (
                           <Input
-                            className="border-border/50 h-8"
+                            id="read-start-value"
+                            className={cn(CONTROL, 'h-8 rounded-sm')}
                             type="text"
                             value={readFromValue}
                             onChange={(e) => setReadFromValue(e.target.value)}
@@ -1434,47 +1761,34 @@ function StudioSession(): JSX.Element | null {
                             }
                           />
                         )}
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="space-y-1">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Label className="text-muted-foreground decoration-muted-foreground/40 w-fit cursor-default text-[11px] underline decoration-dotted underline-offset-2">
-                                Limit (count)
-                              </Label>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-[200px] text-xs">
-                              Max records to return per batch (up to 1000).
-                              Leave empty for no cap.
-                            </TooltipContent>
-                          </Tooltip>
+                      </StudioField>
+                      <div className="space-y-3">
+                        <StudioField
+                          label="Limit"
+                          htmlFor="read-limit"
+                          hint="Max records to return per batch (up to 1000). Leave empty for no cap."
+                        >
                           <Input
-                            className="border-border/50 h-8"
+                            id="read-limit"
+                            className={cn(CONTROL, 'h-8 rounded-sm')}
                             value={readLimitCount}
                             onChange={(e) => setReadLimitCount(e.target.value)}
                             placeholder="optional"
                           />
-                        </div>
-                        <div className="space-y-1">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Label className="text-muted-foreground decoration-muted-foreground/40 w-fit cursor-default text-[11px] underline decoration-dotted underline-offset-2">
-                                Wait (s)
-                              </Label>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-[200px] text-xs">
-                              Seconds to wait for new records when streaming
-                              reaches the tail. Set to 0 to stop immediately at
-                              tail.
-                            </TooltipContent>
-                          </Tooltip>
+                        </StudioField>
+                        <StudioField
+                          label="Wait (s)"
+                          htmlFor="read-wait"
+                          hint="Seconds to wait for new records when streaming reaches the tail. Set to 0 to stop immediately at tail."
+                        >
                           <Input
-                            className="border-border/50 h-8"
+                            id="read-wait"
+                            className={cn(CONTROL, 'h-8 rounded-sm')}
                             value={readWaitSecs}
                             onChange={(e) => setReadWaitSecs(e.target.value)}
                             placeholder="optional"
                           />
-                        </div>
+                        </StudioField>
                       </div>
                       <div className="flex flex-col gap-1.5 pt-0.5">
                         <div className="flex items-center space-x-2">
@@ -1487,7 +1801,10 @@ function StudioSession(): JSX.Element | null {
                             <TooltipTrigger asChild>
                               <Label
                                 htmlFor="read-clamp"
-                                className="decoration-muted-foreground/40 w-fit cursor-pointer text-xs underline decoration-dotted underline-offset-2"
+                                className={cn(
+                                  BODY,
+                                  'w-fit cursor-pointer underline decoration-dotted underline-offset-2'
+                                )}
                               >
                                 Clamp to tail
                               </Label>
@@ -1511,7 +1828,10 @@ function StudioSession(): JSX.Element | null {
                             <TooltipTrigger asChild>
                               <Label
                                 htmlFor="read-ignore-commands"
-                                className="decoration-muted-foreground/40 w-fit cursor-pointer text-xs underline decoration-dotted underline-offset-2"
+                                className={cn(
+                                  BODY,
+                                  'w-fit cursor-pointer underline decoration-dotted underline-offset-2'
+                                )}
                               >
                                 Ignore command records
                               </Label>
@@ -1523,481 +1843,240 @@ function StudioSession(): JSX.Element | null {
                           </Tooltip>
                         </div>
                       </div>
-                    </TooltipProvider>
+                    </StudioSection>
                   </div>
-                  <div className="border-border/30 border-t p-3">
-                    <TooltipProvider>
-                      <div className="flex flex-col gap-2">
-                        <div className="flex gap-2">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="border-border/50 h-8 flex-1"
-                                onClick={() => void readOnce()}
-                                disabled={isStreaming}
-                              >
-                                Read Once
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-[200px] text-xs">
-                              Fetch a single batch of records with the current
-                              settings.
-                            </TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="text-muted-foreground h-8 w-8"
-                                onClick={() => void copyCurl(false)}
-                              >
-                                {readCurlCopied ? (
-                                  <Check className="h-3 w-3" />
-                                ) : (
-                                  <Copy className="h-3 w-3" />
-                                )}
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent className="text-xs">
-                              Copy curl command
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                        <div className="flex gap-2">
-                          {!isStreaming ? (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  className="h-8 flex-1"
-                                  onClick={() => void startStreaming()}
-                                >
-                                  <Play className="mr-1 h-3 w-3" />
-                                  Stream
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-[220px] text-xs">
-                                Open a continuous read session that tails new
-                                records as they arrive. Uses Wait (s) to hold
-                                the connection open at the tail.
-                              </TooltipContent>
-                            </Tooltip>
-                          ) : (
+
+                  <div className="space-y-3">
+                    <h2 className={HEADING}>Session</h2>
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <Label
+                          htmlFor="studio-fencing-token"
+                          className={cn(LABEL, 'block w-fit')}
+                        >
+                          Fencing token
+                        </Label>
+                        <div className="flex items-center gap-1">
+                          <Input
+                            id="studio-fencing-token"
+                            aria-label="Fencing token"
+                            spellCheck={false}
+                            placeholder="optional"
+                            value={fencingToken}
+                            onChange={(e) => setFencingToken(e.target.value)}
+                            className="h-8 min-w-0 flex-1 rounded-sm font-mono text-[13px]"
+                          />
+                          {fencingToken && (
                             <Button
-                              size="sm"
-                              variant="destructive"
-                              className="h-8 flex-1"
-                              onClick={() => void stopStreaming()}
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="text-muted-foreground h-8 w-8 rounded-sm"
+                              onClick={() => setFencingToken('')}
+                              title="Clear token"
                             >
-                              <Square className="mr-1 h-3 w-3" />
-                              Stop
+                              <Eraser className="h-3 w-3" />
                             </Button>
                           )}
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="text-muted-foreground h-8 w-8"
-                                onClick={() => void copyCurl(true)}
-                              >
-                                {streamCurlCopied ? (
-                                  <Check className="h-3 w-3" />
-                                ) : (
-                                  <Copy className="h-3 w-3" />
-                                )}
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent className="text-xs">
-                              Copy curl command
-                            </TooltipContent>
-                          </Tooltip>
                         </div>
+                        <p className={LABEL}>
+                          Sent with appends, trims and fences. While the stream
+                          is fenced, a mismatch is rejected.
+                        </p>
                       </div>
-                    </TooltipProvider>
-                    <div className="text-muted-foreground/60 mt-2 flex items-center gap-1.5 font-mono text-[11px] tabular-nums">
-                      <span>{recordsReceived} records</span>
-                      <span>&middot;</span>
-                      <span>{recordsPerSecond}/s</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="border-border/50 flex min-h-[400px] flex-col overflow-hidden rounded-lg border xl:min-h-0">
-                  <div className="border-border/30 flex shrink-0 items-center gap-2 border-b px-3 py-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground ml-auto h-6 gap-1 px-2 text-xs"
-                      onClick={() => recordViewRef.current?.clear()}
-                    >
-                      <Eraser className="h-3 w-3" />
-                      Clear
-                    </Button>
-                  </div>
-                  <div className="min-h-0 flex-1 overflow-hidden">
-                    <RecordView ref={recordViewRef} />
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent
-              value="append"
-              forceMount
-              className={cn('mt-2', activeTab !== 'append' && 'hidden')}
-            >
-              <div className="grid gap-3 xl:h-[calc(100vh-200px)] xl:grid-cols-[260px_1fr]">
-                <div className="border-border/50 flex flex-col overflow-y-auto rounded-lg border">
-                  <div className="space-y-2.5 p-3">
-                    <div className="flex items-center justify-between pb-0.5">
-                      <span className="text-muted-foreground/60 text-[11px] font-medium tracking-wider uppercase">
-                        Append settings
-                      </span>
-                      <DocsLink
-                        href={STUDIO_DOCS.appends}
-                        label="Append docs"
-                      />
-                    </div>
-                    <TooltipProvider>
-                      <div className="space-y-1">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Label className="text-muted-foreground decoration-muted-foreground/40 w-fit cursor-default text-[11px] underline decoration-dotted underline-offset-2">
-                              Input mode
-                            </Label>
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-[220px] text-xs">
-                            How to interpret the payload: one record, one record
-                            per newline, or a JSON array of{' '}
-                            <code className="font-mono">
-                              {'{body, headers?, timestamp?}'}
-                            </code>{' '}
-                            objects. Timestamps are epoch milliseconds or ISO
-                            dates.
-                          </TooltipContent>
-                        </Tooltip>
-                        <Select
-                          value={appendMode}
-                          onValueChange={(v) =>
-                            setAppendMode(v as AppendInputMode)
-                          }
-                        >
-                          <SelectTrigger className="border-border/50 h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="single">Single body</SelectItem>
-                            <SelectItem value="lines">One per line</SelectItem>
-                            <SelectItem value="json-array">
-                              JSON array
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Label className="text-muted-foreground decoration-muted-foreground/40 w-fit cursor-default text-[11px] underline decoration-dotted underline-offset-2">
-                              Match Sequence Number
-                            </Label>
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-[240px] text-xs">
-                            Conditional append: only succeeds if the stream tail
-                            matches this sequence number. Use for optimistic
-                            concurrency.
-                          </TooltipContent>
-                        </Tooltip>
-                        <Input
-                          className="border-border/50 h-8"
-                          aria-label="Match sequence number"
-                          value={appendMatchSeqNum}
-                          onChange={(e) => setAppendMatchSeqNum(e.target.value)}
-                          placeholder="optional"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Label className="text-muted-foreground decoration-muted-foreground/40 w-fit cursor-default text-[11px] underline decoration-dotted underline-offset-2">
-                              Fencing token
-                            </Label>
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-[220px] text-xs">
-                            Required if the stream has an active fence. Must
-                            match exactly (max 36 bytes UTF-8). Set a fence via
-                            the Commands section below.
-                          </TooltipContent>
-                        </Tooltip>
-                        <Input
-                          className="border-border/50 h-8"
-                          value={appendFencingToken}
-                          onChange={(e) =>
-                            setAppendFencingToken(e.target.value)
-                          }
-                          placeholder="optional"
-                        />
-                      </div>
-                    </TooltipProvider>
-                  </div>
-                  <div className="border-border/30 border-t p-3">
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="sm"
-                        className="h-8 flex-1"
-                        onClick={() => void handleAppend()}
-                        disabled={appending}
-                      >
-                        {appending ? (
-                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Send className="mr-1.5 h-3.5 w-3.5" />
-                        )}
-                        Append
-                      </Button>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
+                      {selectedStreamInfo?.cipher && (
+                        <div className="space-y-1.5">
+                          <Label
+                            htmlFor="studio-encryption-key"
+                            className={cn(LABEL, 'block w-fit')}
+                          >
+                            Encryption key
+                          </Label>
+                          <div className="flex items-center gap-1">
+                            <Input
+                              id="studio-encryption-key"
+                              aria-label="Encryption key"
+                              type={showEncryptionKey ? 'text' : 'password'}
+                              autoComplete="new-password"
+                              data-lpignore="true"
+                              data-1p-ignore
+                              spellCheck={false}
+                              placeholder="base64 key"
+                              value={encryptionKey}
+                              onChange={(e) => setEncryptionKey(e.target.value)}
+                              className="h-8 min-w-0 flex-1 rounded-sm font-mono text-[13px]"
+                            />
                             <Button
-                              size="icon"
+                              type="button"
                               variant="ghost"
-                              className="text-muted-foreground h-8 w-8"
-                              onClick={() => void copyAppendCurl()}
+                              size="icon"
+                              className="text-muted-foreground h-8 w-8 rounded-sm"
+                              onClick={() =>
+                                setShowEncryptionKey((prev) => !prev)
+                              }
+                              title={
+                                showEncryptionKey ? 'Hide key' : 'Show key'
+                              }
                             >
-                              {appendCurlCopied ? (
-                                <Check className="h-3 w-3" />
+                              {showEncryptionKey ? (
+                                <EyeOff className="h-3 w-3" />
                               ) : (
-                                <Copy className="h-3 w-3" />
+                                <Eye className="h-3 w-3" />
                               )}
                             </Button>
-                          </TooltipTrigger>
-                          <TooltipContent className="text-xs">
-                            Copy curl command
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                            {encryptionKey && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="text-muted-foreground h-8 w-8 rounded-sm"
+                                onClick={() => setEncryptionKey('')}
+                                title="Clear key"
+                              >
+                                <Eraser className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    {lastAppendAck && (
-                      <div className="bg-muted/50 text-muted-foreground/70 mt-2 space-y-0.5 rounded px-2 py-1.5 font-mono text-[10px] tabular-nums">
-                        <div className="flex justify-between">
-                          <span>start</span>
-                          <span>{formatPosition(lastAppendAck.start)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>end</span>
-                          <span>{formatPosition(lastAppendAck.end)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>tail</span>
-                          <span>{formatPosition(lastAppendAck.tail)}</span>
-                        </div>
-                      </div>
-                    )}
                   </div>
-                  <div className="border-border/30 space-y-2 border-t p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-muted-foreground/50 text-[11px] font-medium tracking-wider uppercase">
-                        Commands
-                      </h3>
-                      <div className="flex items-center gap-2">
+
+                  <div className="space-y-4">
+                    <h2 className={HEADING}>Maintain</h2>
+                    <div className="space-y-1.5">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <Label htmlFor="studio-trim-seq" className={LABEL}>
+                          Trim through
+                        </Label>
                         <DocsLink
                           href={STUDIO_DOCS.retention}
                           label="Trim docs"
                         />
-                        <span className="text-muted-foreground/40">
-                          &middot;
-                        </span>
+                      </div>
+                      <p className={LABEL}>
+                        Discards every record up to and including this sequence
+                        number.
+                      </p>
+                      <div className="flex items-center gap-1">
+                        <Input
+                          id="studio-trim-seq"
+                          aria-label="Trim through sequence number"
+                          placeholder="Sequence number"
+                          value={trimSeqNum}
+                          onChange={(e) => setTrimSeqNum(e.target.value)}
+                          className="h-8 min-w-0 flex-1 rounded-sm font-mono text-[13px]"
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={cn(
+                            CONTROL,
+                            'text-destructive h-8 rounded-sm px-2'
+                          )}
+                          onClick={() => void runTrim()}
+                          disabled={runningCommand}
+                        >
+                          Trim
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <Label htmlFor="studio-new-fence" className={LABEL}>
+                          New fencing token
+                        </Label>
                         <DocsLink
                           href={STUDIO_DOCS.concurrency}
                           label="Fence docs"
                         />
                       </div>
+                      <p className={LABEL}>
+                        Once set, requests that send a fencing token must match
+                        it.
+                      </p>
+                      <div className="flex items-center gap-1">
+                        <Input
+                          id="studio-new-fence"
+                          aria-label="New fencing token"
+                          placeholder="New token"
+                          value={nextFenceToken}
+                          onChange={(e) => setNextFenceToken(e.target.value)}
+                          className="h-8 min-w-0 flex-1 rounded-sm font-mono text-[13px]"
+                        />
+                        <Button
+                          size="sm"
+                          className={cn(CONTROL, 'h-8 rounded-sm px-2')}
+                          onClick={() => void runFence()}
+                          disabled={runningCommand}
+                        >
+                          Fence
+                        </Button>
+                      </div>
                     </div>
-                    <TooltipProvider>
-                      <div className="space-y-1">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Label className="text-muted-foreground decoration-muted-foreground/40 w-fit cursor-default text-[11px] underline decoration-dotted underline-offset-2">
-                              Trim through seq #
-                            </Label>
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-[220px] text-xs">
-                            Permanently discard all records up to and including
-                            this sequence number. Irreversible — use to reclaim
-                            storage.
-                          </TooltipContent>
-                        </Tooltip>
-                        <div className="flex gap-1.5">
-                          <Input
-                            className="border-border/50 h-7 flex-1 text-xs"
-                            value={trimSeqNum}
-                            onChange={(e) => setTrimSeqNum(e.target.value)}
-                            placeholder="e.g. 1000"
-                          />
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            className="h-7 w-16 px-2.5 text-xs"
-                            onClick={() => void runTrim()}
-                            disabled={runningCommand}
-                          >
-                            Trim
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Label className="text-muted-foreground decoration-muted-foreground/40 w-fit cursor-default text-[11px] underline decoration-dotted underline-offset-2">
-                              Fencing token
-                            </Label>
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-[240px] text-xs">
-                            Set a new exclusive write token (max 36 bytes). Once
-                            set, all appends must supply this token. Use to
-                            ensure only one writer can modify the stream at a
-                            time.
-                          </TooltipContent>
-                        </Tooltip>
-                        <div className="flex gap-1.5">
-                          <Input
-                            className="border-border/50 h-7 flex-1 text-xs"
-                            value={nextFenceToken}
-                            onChange={(e) => setNextFenceToken(e.target.value)}
-                            placeholder="new token"
-                          />
-                          <Button
-                            size="sm"
-                            className="h-7 w-16 px-2.5 text-xs"
-                            onClick={() => void runFence()}
-                            disabled={runningCommand}
-                          >
-                            Fence
-                          </Button>
-                        </div>
-                      </div>
-                    </TooltipProvider>
                     {lastCommandAck && (
-                      <div className="bg-muted/50 text-muted-foreground/70 rounded px-2 py-1.5 font-mono text-[10px] tabular-nums">
-                        <div className="flex justify-between">
-                          <span>tail</span>
-                          <span>{formatPosition(lastCommandAck.tail)}</span>
-                        </div>
-                      </div>
+                      <PositionRows rows={[['tail', lastCommandAck.tail]]} />
                     )}
                   </div>
                 </div>
-                <div className="border-border/30 flex min-h-[300px] flex-col overflow-hidden rounded-lg border xl:min-h-0">
-                  <div className="border-border/30 flex shrink-0 items-center justify-between border-b px-3 py-1">
-                    <span className="text-muted-foreground text-[11px]">
-                      Payload
-                      <span className="text-muted-foreground/30 ml-1.5">
-                        max 1000 records, 1 MiB/batch
-                      </span>
-                      <a
-                        href={STUDIO_DOCS.limits}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                        className="text-muted-foreground decoration-muted-foreground/40 hover:text-foreground ml-1.5 underline decoration-dotted underline-offset-2 transition-colors"
-                      >
-                        limits
-                      </a>
+              </aside>
+            </div>
+
+            <Dialog
+              open={trimConfirmSeqNum !== null}
+              onOpenChange={(open) => {
+                if (!open && !runningCommand) {
+                  setTrimConfirmSeqNum(null);
+                }
+              }}
+            >
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className={HEADING}>
+                    Confirm trim command
+                  </DialogTitle>
+                  <DialogDescription>
+                    This action is irreversible. Trim{' '}
+                    <span className="text-foreground font-mono">
+                      {selectedStream}
+                    </span>{' '}
+                    through sequence{' '}
+                    <span className="text-foreground font-mono">
+                      #{trimConfirmSeqNum ?? 'n/a'}
                     </span>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <label className="text-muted-foreground hover:bg-muted hover:text-foreground flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-colors">
-                            <Paperclip className="h-3 w-3" />
-                            <span>Load file</span>
-                            <input
-                              type="file"
-                              className="hidden"
-                              accept=".txt,.json,.jsonl,.ndjson"
-                              onChange={(e) => void onAppendFileSelected(e)}
-                            />
-                          </label>
-                        </TooltipTrigger>
-                        <TooltipContent
-                          side="left"
-                          className="max-w-[220px] text-xs"
-                        >
-                          Load a file into the payload editor. Input mode is
-                          auto-detected from the extension: .json → JSON array,
-                          .jsonl/.ndjson → one per line, .txt → single body.
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  <textarea
-                    className="bg-muted/40 text-foreground placeholder:text-muted-foreground min-h-0 flex-1 resize-none border-0 p-3 font-mono text-sm focus:ring-0 focus:outline-none"
-                    value={appendPayload}
-                    onChange={(e) => setAppendPayload(e.target.value)}
-                    placeholder={
-                      appendMode === 'json-array'
-                        ? '[{"body":"hello","headers":{"source":"studio"}}]'
-                        : appendMode === 'lines'
-                          ? 'first line\nsecond line'
-                          : 'single record body'
-                    }
-                  />
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
-          <Dialog
-            open={trimConfirmSeqNum !== null}
-            onOpenChange={(open) => {
-              if (!open && !runningCommand) {
-                setTrimConfirmSeqNum(null);
-              }
-            }}
-          >
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle className="text-lg">
-                  Confirm trim command
-                </DialogTitle>
-                <DialogDescription>
-                  This action is irreversible. Trim{' '}
-                  <span className="text-foreground font-mono">
-                    {selectedStream}
-                  </span>{' '}
-                  through sequence{' '}
-                  <span className="text-foreground font-mono">
-                    #{trimConfirmSeqNum ?? 'n/a'}
-                  </span>
-                  .
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setTrimConfirmSeqNum(null)}
-                  disabled={runningCommand}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => void confirmTrim()}
-                  disabled={runningCommand}
-                >
-                  {runningCommand ? (
-                    <>
-                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                      Trimming...
-                    </>
-                  ) : (
-                    'Trim stream'
-                  )}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </>
-      )}
-    </section>
+                    .
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    className="rounded-sm"
+                    onClick={() => setTrimConfirmSeqNum(null)}
+                    disabled={runningCommand}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    className="rounded-sm"
+                    onClick={() => void confirmTrim()}
+                    disabled={runningCommand}
+                  >
+                    {runningCommand ? (
+                      <>
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        Trimming...
+                      </>
+                    ) : (
+                      'Trim stream'
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </>
+        )}
+      </section>
+    </TooltipProvider>
   );
 }

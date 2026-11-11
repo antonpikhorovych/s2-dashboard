@@ -18,6 +18,7 @@ interface StreamComboboxProps {
   value: string;
   onValueChange: (value: string) => void;
   disabled?: boolean;
+  className?: string;
 }
 
 export function StreamCombobox({
@@ -25,6 +26,7 @@ export function StreamCombobox({
   value,
   onValueChange,
   disabled,
+  className,
 }: StreamComboboxProps) {
   const { getClient, scopeKey } = useDashboardHost();
   const [open, setOpen] = useState(false);
@@ -122,14 +124,12 @@ export function StreamCombobox({
           variant="outline"
           role="combobox"
           disabled={disabled}
-          className="border-border/50 h-8 w-[160px] justify-between text-sm sm:w-[220px]"
+          className={cn(
+            'border-border/50 h-8 w-[160px] justify-between text-sm sm:w-[220px]',
+            className
+          )}
         >
-          <span
-            className={cn(
-              'truncate',
-              value ? 'font-mono' : 'text-muted-foreground'
-            )}
-          >
+          <span className={cn('truncate', !value && 'text-muted-foreground')}>
             {value || 'Select a stream'}
           </span>
           <ChevronDown className="ml-1 h-3.5 w-3.5 shrink-0 opacity-50" />
@@ -165,7 +165,7 @@ export function StreamCombobox({
                 <button
                   key={stream.name}
                   className={cn(
-                    'hover:bg-muted flex w-full items-center gap-2 px-3 py-1.5 text-left font-mono text-xs transition-colors',
+                    'hover:bg-muted flex w-full items-center gap-2 px-3 py-2 text-left text-[14px] transition-colors',
                     value === stream.name && 'bg-muted'
                   )}
                   onClick={() => {
