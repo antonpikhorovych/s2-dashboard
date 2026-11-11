@@ -23,12 +23,16 @@ const recordView = vi.hoisted(() => ({
   clear: vi.fn(),
   addRecord: vi.fn(),
   addStatus: vi.fn(),
+  mounts: { count: 0 },
 }));
 vi.mock('../packages/dashboard/src/basins/RecordView', async () => {
-  const { forwardRef, useImperativeHandle } = await import('react');
+  const { forwardRef, useEffect, useImperativeHandle } = await import('react');
   return {
     RecordView: forwardRef(function RecordView(_props, ref) {
       useImperativeHandle(ref, () => recordView);
+      useEffect(() => {
+        recordView.mounts.count += 1;
+      }, []);
       return <div />;
     }),
   };
@@ -47,6 +51,7 @@ const route = (basinId: string, name = 'events') => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  recordView.mounts.count = 0;
   vi.mocked(api.fetchStreamsData).mockImplementation(async (_s2, input) => ({
     streams: [stream(input.prefix ?? 'events')],
     hasMore: false,
@@ -209,6 +214,71 @@ it('sends the session fencing token with an append', async () => {
       expect.objectContaining({ fencingToken: 'tok-1' }),
       undefined
     )
+  );
+});
+
+it('keeps the log streaming while an append runs', async () => {
+  const queue: Array<{
+    seqNum: number;
+    timestamp: Date;
+    body: string;
+    headers: never[];
+  }> = [];
+  let resume: (() => void) | null = null;
+  vi.mocked(api.openReadSession).mockResolvedValue({
+    [Symbol.asyncIterator]: () => ({
+      async next() {
+        while (queue.length === 0) {
+          await new Promise<void>((resolve) => {
+            resume = resolve;
+          });
+        }
+        return { done: false, value: queue.shift() };
+      },
+    }),
+  } as unknown as ReadSession<'string'>);
+  const deliver = async (body: string, seqNum: number) => {
+    await act(async () => {
+      queue.push({ seqNum, timestamp: new Date(0), body, headers: [] });
+      const waiting = resume;
+      resume = null;
+      waiting?.();
+    });
+  };
+
+  renderDashboard(<Studio />, { route: route('basin-a') });
+  const user = userEvent.setup();
+  await screen.findByPlaceholderText('base64 key');
+  await user.click(screen.getByRole('button', { name: 'Stream' }));
+  await waitFor(() => expect(api.openReadSession).toHaveBeenCalledOnce());
+  const signal = vi.mocked(api.openReadSession).mock.calls[0][5]?.signal;
+
+  await deliver('first', 1);
+  await waitFor(() =>
+    expect(recordView.addRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ body: 'first' })
+    )
+  );
+  recordView.clear.mockClear();
+
+  await user.type(screen.getByPlaceholderText('single record body'), 'payload');
+  await user.click(screen.getByRole('button', { name: 'Append' }));
+  await waitFor(() => expect(api.appendToStream).toHaveBeenCalledOnce());
+
+  // Appending must not end the open read or remount the log.
+  expect(signal?.aborted).toBe(false);
+  expect(recordView.clear).not.toHaveBeenCalled();
+  expect(recordView.mounts.count).toBe(1);
+
+  // The same read keeps delivering records after the append.
+  await deliver('second', 2);
+  await waitFor(() =>
+    expect(recordView.addRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ body: 'second' })
+    )
+  );
+  expect(recordView.addRecord).toHaveBeenCalledWith(
+    expect.objectContaining({ body: 'first' })
   );
 });
 

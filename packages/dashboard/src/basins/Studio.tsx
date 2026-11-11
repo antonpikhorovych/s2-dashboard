@@ -1373,7 +1373,7 @@ function StudioSession(): JSX.Element | null {
         ) : (
           <>
             <div className="grid gap-4 lg:h-[calc(100dvh_-_190px)] lg:min-h-[520px] lg:grid-cols-[minmax(0,1fr)_360px]">
-              <div className="border-border/50 flex h-[55vh] min-h-0 flex-col overflow-hidden rounded-lg border lg:h-auto">
+              <div className="border-border/50 flex min-h-[55vh] flex-col overflow-hidden rounded-lg border lg:h-auto lg:min-h-0">
                 <div className="bg-muted flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2">
                   <div className="flex min-w-0 items-baseline gap-2">
                     <span
@@ -1537,7 +1537,7 @@ function StudioSession(): JSX.Element | null {
                   <textarea
                     className={cn(
                       BODY,
-                      'bg-background placeholder:text-muted-foreground dark:bg-input/30 h-28 w-full resize-y border-0 px-4 py-3 font-mono focus:ring-0 focus:outline-none'
+                      'bg-background placeholder:text-muted-foreground dark:bg-input/30 h-28 max-h-[30dvh] w-full resize-y border-0 px-4 py-3 font-mono focus:ring-0 focus:outline-none'
                     )}
                     value={appendPayload}
                     onChange={(e) => setAppendPayload(e.target.value)}

@@ -132,7 +132,7 @@ export function StreamCombobox({
           <span className={cn('truncate', !value && 'text-muted-foreground')}>
             {value || 'Select a stream'}
           </span>
-          <ChevronDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+          <ChevronDown className="ml-1 size-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[260px] p-0" align="start">
