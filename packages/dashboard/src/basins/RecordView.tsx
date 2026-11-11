@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { cn } from '../lib/utils';
+import { SIZE_BODY, SIZE_CONTROL, SIZE_LABEL } from './studio-type';
 import { formatUTCTime, formatUTCTimestamp } from '../lib/date-time';
 import { meteredBytes } from '@s2-dev/streamstore';
 
@@ -124,6 +125,7 @@ function RecordItem({ record, defaultExpanded = false }: RecordItemProps) {
       ? record.timestamp
       : new Date(Number(record.timestamp));
   const timeString = formatUTCTimestamp(timestamp);
+  const shortTime = formatUTCTime(timestamp);
   const { isJson, formatted } = tryParseJson(record.body);
   const preview =
     record.body.slice(0, 100) + (record.body.length > 100 ? '...' : '');
@@ -152,7 +154,7 @@ function RecordItem({ record, defaultExpanded = false }: RecordItemProps) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      // ignore
+      return;
     }
   };
 
@@ -168,16 +170,33 @@ function RecordItem({ record, defaultExpanded = false }: RecordItemProps) {
             isExpanded && 'text-muted-foreground rotate-90'
           )}
         />
-        <span className="text-muted-foreground w-12 shrink-0 text-right text-[14px] tabular-nums">
+        <span
+          className={cn(
+            'text-muted-foreground w-12 shrink-0 text-right',
+            SIZE_BODY,
+            'tabular-nums'
+          )}
+        >
           {seqNum}
         </span>
-        <span className="text-muted-foreground/70 w-48 shrink-0 text-[14px] whitespace-nowrap tabular-nums">
-          {timeString}
+        <span
+          className={cn(
+            'text-muted-foreground/70 w-[96px] shrink-0 sm:w-48',
+            SIZE_BODY,
+            'whitespace-nowrap tabular-nums'
+          )}
+        >
+          <span className="sm:hidden">{shortTime}</span>
+          <span className="hidden sm:inline">{timeString}</span>
         </span>
-        <span className="flex w-20 shrink-0 items-center gap-1">
+        <span className="hidden w-20 shrink-0 items-center gap-1 sm:flex">
           {isJson && (
             <span
-              className="shrink-0 rounded-sm bg-blue-500/10 px-1 py-px text-[12px] font-medium text-blue-700 dark:text-blue-400"
+              className={cn(
+                'shrink-0 rounded-sm bg-blue-500/10 px-1 py-px',
+                SIZE_LABEL,
+                'font-medium text-blue-700 dark:text-blue-400'
+              )}
               title="Body parses as JSON"
             >
               json
@@ -185,7 +204,11 @@ function RecordItem({ record, defaultExpanded = false }: RecordItemProps) {
           )}
           {commandType && (
             <span
-              className="shrink-0 rounded-sm bg-amber-500/10 px-1 py-px text-[12px] font-medium text-amber-700 dark:text-amber-300"
+              className={cn(
+                'shrink-0 rounded-sm bg-amber-500/10 px-1 py-px',
+                SIZE_LABEL,
+                'font-medium text-amber-700 dark:text-amber-300'
+              )}
               title={commandSummary ?? `${commandType} command`}
             >
               {commandType}
@@ -193,21 +216,32 @@ function RecordItem({ record, defaultExpanded = false }: RecordItemProps) {
           )}
           {hasHeaders && !commandType && (
             <span
-              className="shrink-0 rounded-sm bg-purple-500/10 px-1 py-px text-[12px] font-medium text-purple-700 dark:text-purple-300"
+              className={cn(
+                'shrink-0 rounded-sm bg-purple-500/10 px-1 py-px',
+                SIZE_LABEL,
+                'font-medium text-purple-700 dark:text-purple-300'
+              )}
               title={`${record.headers!.length} header(s)`}
             >
               {record.headers!.length} hdr
             </span>
           )}
         </span>
-        <span className="text-muted-foreground/70 w-14 shrink-0 text-right text-[14px] tabular-nums">
+        <span
+          className={cn(
+            'text-muted-foreground/70 hidden w-14 shrink-0 text-right sm:block',
+            SIZE_BODY,
+            'tabular-nums'
+          )}
+        >
           {formatBytes(size)}
         </span>
         <div className="flex min-w-0 flex-1 items-center gap-2">
           {!isExpanded && (
             <span
               className={cn(
-                'truncate font-mono text-[13px]',
+                SIZE_CONTROL,
+                'truncate font-mono',
                 commandType
                   ? 'text-amber-700/80 dark:text-amber-300/80'
                   : 'text-foreground/50'
@@ -220,7 +254,7 @@ function RecordItem({ record, defaultExpanded = false }: RecordItemProps) {
         <Button
           variant="ghost"
           size="sm"
-          className="h-5 w-5 shrink-0 rounded-sm p-0 opacity-0 transition-opacity group-hover:opacity-100"
+          className="hidden h-5 w-5 shrink-0 rounded-sm p-0 opacity-0 transition-opacity group-hover:opacity-100 sm:inline-flex"
           onClick={copyBody}
         >
           {copied ? (
@@ -234,10 +268,22 @@ function RecordItem({ record, defaultExpanded = false }: RecordItemProps) {
         <div className="border-border/20 ml-[72px] border-l py-3 pr-4 pl-4">
           {commandType && (
             <div className="mb-2 rounded border border-amber-500/20 bg-amber-500/5 px-2 py-1.5">
-              <div className="mb-1 text-[12px] font-medium text-amber-700/80 dark:text-amber-300/80">
+              <div
+                className={cn(
+                  'mb-1',
+                  SIZE_LABEL,
+                  'font-medium text-amber-700/80 dark:text-amber-300/80'
+                )}
+              >
                 Command
               </div>
-              <div className="font-mono text-[13px] text-amber-700/80 dark:text-amber-200/90">
+              <div
+                className={cn(
+                  'font-mono',
+                  SIZE_CONTROL,
+                  'text-amber-700/80 dark:text-amber-200/90'
+                )}
+              >
                 {commandType === 'trim' && trimTargetSeqNum !== null
                   ? `Trim through sequence #${trimTargetSeqNum}`
                   : commandType === 'trim'
@@ -250,13 +296,19 @@ function RecordItem({ record, defaultExpanded = false }: RecordItemProps) {
           )}
           {hasHeaders && (
             <div className="mb-2">
-              <div className="text-muted-foreground/50 mb-1 text-[12px] font-medium">
+              <div
+                className={cn(
+                  'text-muted-foreground/50 mb-1',
+                  SIZE_LABEL,
+                  'font-medium'
+                )}
+              >
                 Headers
               </div>
               {record.headers!.map(([key, value], i) => (
                 <div
                   key={i}
-                  className="flex gap-1.5 py-0.5 font-mono text-[13px]"
+                  className={cn('flex gap-1.5 py-0.5 font-mono', SIZE_CONTROL)}
                 >
                   <span className="text-muted-foreground">{key}:</span>
                   <span className="text-foreground/80 break-all">{value}</span>
@@ -265,7 +317,13 @@ function RecordItem({ record, defaultExpanded = false }: RecordItemProps) {
             </div>
           )}
           {record.body && commandType !== 'trim' && (
-            <pre className="bg-muted/70 text-foreground/80 max-h-[400px] overflow-auto rounded-md p-2 font-mono text-[13px] leading-relaxed break-all whitespace-pre-wrap dark:bg-black/20">
+            <pre
+              className={cn(
+                'bg-muted/70 text-foreground/80 max-h-[400px] overflow-auto rounded-md p-2 font-mono',
+                SIZE_CONTROL,
+                'leading-relaxed break-all whitespace-pre-wrap dark:bg-black/20'
+              )}
+            >
               {isJson ? formatted : record.body}
             </pre>
           )}
@@ -306,10 +364,16 @@ function StatusItem({ message }: StatusItemProps) {
   return (
     <div className={cn('flex items-center gap-2 px-4 py-2', bgClass)}>
       <IconComponent className={cn('h-3 w-3 shrink-0', colorClass)} />
-      <span className="text-muted-foreground/70 shrink-0 text-[12px] tabular-nums">
+      <span
+        className={cn(
+          'text-muted-foreground/70 shrink-0',
+          SIZE_LABEL,
+          'tabular-nums'
+        )}
+      >
         {timeString}
       </span>
-      <span className={cn('text-[14px]', colorClass)}>{message.text}</span>
+      <span className={cn(SIZE_BODY, colorClass)}>{message.text}</span>
     </div>
   );
 }
@@ -398,28 +462,56 @@ export const RecordView = forwardRef<RecordViewHandle, RecordViewProps>(
         style={{ scrollbarGutter: 'stable' }}
       >
         {items.length > 0 && (
-          <div className="bg-muted/60 sticky top-0 z-10">
+          <div className="bg-muted sticky top-0 z-10">
             <div className="flex items-center gap-2 px-4 py-2">
               <span className="w-3.5 shrink-0" />
-              <span className="text-muted-foreground w-12 shrink-0 text-right text-[12px]">
+              <span
+                className={cn(
+                  'text-muted-foreground w-12 shrink-0 text-right',
+                  SIZE_LABEL
+                )}
+              >
                 Seq
               </span>
-              <span className="text-muted-foreground w-48 shrink-0 text-[12px]">
+              <span
+                className={cn(
+                  'text-muted-foreground w-[96px] shrink-0 sm:w-48',
+                  SIZE_LABEL
+                )}
+              >
                 Time
               </span>
-              <span className="text-muted-foreground w-20 shrink-0 text-[12px]">
+              <span
+                className={cn(
+                  'text-muted-foreground hidden w-20 shrink-0 sm:block',
+                  SIZE_LABEL
+                )}
+              >
                 Type
               </span>
-              <span className="text-muted-foreground w-14 shrink-0 text-right text-[12px]">
+              <span
+                className={cn(
+                  'text-muted-foreground hidden w-14 shrink-0 text-right sm:block',
+                  SIZE_LABEL
+                )}
+              >
                 Size
               </span>
-              <span className="text-muted-foreground min-w-0 flex-1 text-[12px]">
+              <span
+                className={cn(
+                  'text-muted-foreground min-w-0 flex-1',
+                  SIZE_LABEL
+                )}
+              >
                 Preview
               </span>
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-muted-foreground h-6 rounded-sm px-2 text-[12px]"
+                className={cn(
+                  'text-muted-foreground h-6 rounded-sm px-2',
+                  SIZE_LABEL
+                )}
                 onClick={() => setShowLegend((prev) => !prev)}
               >
                 <Info className="mr-1 h-3 w-3" />
@@ -427,7 +519,12 @@ export const RecordView = forwardRef<RecordViewHandle, RecordViewProps>(
               </Button>
             </div>
             {showLegend && (
-              <div className="border-border/30 text-muted-foreground grid gap-1 border-t px-4 py-3 text-[12px]">
+              <div
+                className={cn(
+                  'border-border/30 text-muted-foreground grid gap-1 border-t px-4 py-3',
+                  SIZE_LABEL
+                )}
+              >
                 <div>
                   <span className="text-foreground/80 font-mono">seq</span> =
                   stream sequence number.
@@ -437,25 +534,49 @@ export const RecordView = forwardRef<RecordViewHandle, RecordViewProps>(
                   record timestamp (UTC).
                 </div>
                 <div>
-                  <span className="rounded-sm bg-blue-500/10 px-1 py-px text-[12px] font-medium text-blue-700 dark:text-blue-400">
+                  <span
+                    className={cn(
+                      'rounded-sm bg-blue-500/10 px-1 py-px',
+                      SIZE_LABEL,
+                      'font-medium text-blue-700 dark:text-blue-400'
+                    )}
+                  >
                     json
                   </span>{' '}
                   body parses as JSON.
                 </div>
                 <div>
-                  <span className="rounded-sm bg-amber-500/10 px-1 py-px text-[12px] font-medium text-amber-700 dark:text-amber-300">
+                  <span
+                    className={cn(
+                      'rounded-sm bg-amber-500/10 px-1 py-px',
+                      SIZE_LABEL,
+                      'font-medium text-amber-700 dark:text-amber-300'
+                    )}
+                  >
                     trim
                   </span>{' '}
                   trim command; preview includes target sequence when available.
                 </div>
                 <div>
-                  <span className="rounded-sm bg-amber-500/10 px-1 py-px text-[12px] font-medium text-amber-700 dark:text-amber-300">
+                  <span
+                    className={cn(
+                      'rounded-sm bg-amber-500/10 px-1 py-px',
+                      SIZE_LABEL,
+                      'font-medium text-amber-700 dark:text-amber-300'
+                    )}
+                  >
                     fence
                   </span>{' '}
                   fencing command; preview shows token set/clear action.
                 </div>
                 <div>
-                  <span className="rounded-sm bg-purple-500/10 px-1 py-px text-[12px] font-medium text-purple-700 dark:text-purple-300">
+                  <span
+                    className={cn(
+                      'rounded-sm bg-purple-500/10 px-1 py-px',
+                      SIZE_LABEL,
+                      'font-medium text-purple-700 dark:text-purple-300'
+                    )}
+                  >
                     n hdr
                   </span>{' '}
                   number of record headers (non-command records).
@@ -471,10 +592,10 @@ export const RecordView = forwardRef<RecordViewHandle, RecordViewProps>(
         {items.length === 0 ? (
           <div className="text-muted-foreground/60 flex h-full flex-col items-center justify-center gap-2">
             <Terminal className="h-10 w-10 stroke-[1.2]" />
-            <p className="text-muted-foreground text-[14px]">
+            <p className={cn('text-muted-foreground', SIZE_BODY)}>
               Waiting for records
             </p>
-            <p className="text-muted-foreground/60 text-[12px]">
+            <p className={cn('text-muted-foreground/60', SIZE_LABEL)}>
               Read Once or Stream to get started
             </p>
           </div>

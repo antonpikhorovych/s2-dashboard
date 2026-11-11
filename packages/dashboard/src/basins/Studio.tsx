@@ -65,6 +65,7 @@ import EmptyList from '../components/EmptyList';
 import { Calendar } from '../ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { cn } from '../lib/utils';
+import { BODY, CONTROL, HEADING, LABEL } from './studio-type';
 import {
   formatUTCDateTime,
   parseUTCTimestamp,
@@ -93,17 +94,9 @@ type AppendInputMode = 'single' | 'lines' | 'json-array';
 
 const STUDIO_DOCS = {
   studio: 'https://s2.dev/docs/studio',
-  reads: 'https://s2.dev/docs/concepts/reads',
-  appends: 'https://s2.dev/docs/concepts/appends',
   concurrency: 'https://s2.dev/docs/concepts/concurrency-controls',
   retention: 'https://s2.dev/docs/concepts/retention',
-  limits: 'https://s2.dev/docs/platform/limits',
 } as const;
-
-const BODY = 'text-[14px] leading-5';
-const LABEL = 'text-[12px] leading-4 text-muted-foreground';
-const HEADING = 'text-[14px] leading-5 font-semibold';
-const CONTROL = 'text-[13px] leading-5';
 
 function DocsLink({
   href,
@@ -242,7 +235,6 @@ function StudioSection({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  // The fields show their own errors once the section is open.
   const caption = open ? summary : (error ?? summary);
   return (
     <div>
@@ -1280,7 +1272,7 @@ function StudioSession(): JSX.Element | null {
           <div className="border-border/50 flex h-7 items-center overflow-hidden rounded-sm border">
             <BasinCombobox
               value={basinId}
-              className="hover:bg-muted h-7 w-[132px] rounded-none border-0 bg-transparent px-2 text-[12px] sm:w-[146px]"
+              className="hover:bg-muted h-7 w-[132px] rounded-none border-0 bg-transparent px-2 text-[12px] focus-visible:ring-inset sm:w-[146px]"
               onValueChange={(value) => {
                 navigate(
                   `/dashboard/basins/${encodeURIComponent(value)}/studio`
@@ -1294,7 +1286,7 @@ function StudioSession(): JSX.Element | null {
             <StreamCombobox
               basinId={basinId}
               value={selectedStream}
-              className="hover:bg-muted h-7 w-[150px] rounded-none border-0 bg-transparent px-2 text-[12px] sm:w-[180px]"
+              className="hover:bg-muted h-7 w-[150px] rounded-none border-0 bg-transparent px-2 text-[12px] focus-visible:ring-inset sm:w-[180px]"
               onValueChange={(value) => {
                 setSelectedStream(value);
                 updateStreamInUrl(value);
@@ -1383,7 +1375,7 @@ function StudioSession(): JSX.Element | null {
           <>
             <div className="grid gap-4 lg:h-[calc(100dvh_-_190px)] lg:min-h-[520px] lg:grid-cols-[minmax(0,1fr)_360px]">
               <div className="border-border/50 flex h-[55vh] min-h-0 flex-col overflow-hidden rounded-lg border lg:h-auto">
-                <div className="bg-muted/60 flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2">
+                <div className="bg-muted flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2">
                   <div className="flex min-w-0 items-baseline gap-2">
                     <span className={HEADING}>Records</span>
                     <span className={cn(LABEL, 'tabular-nums')}>
