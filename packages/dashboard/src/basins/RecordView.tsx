@@ -172,8 +172,8 @@ function RecordItem({ record, defaultExpanded = false }: RecordItemProps) {
         />
         <span
           className={cn(
-            'text-muted-foreground w-12 shrink-0 text-right',
-            SIZE_BODY,
+            'text-muted-foreground w-12 shrink-0 text-right font-mono',
+            SIZE_CONTROL,
             'tabular-nums'
           )}
         >
@@ -181,8 +181,8 @@ function RecordItem({ record, defaultExpanded = false }: RecordItemProps) {
         </span>
         <span
           className={cn(
-            'text-muted-foreground/70 w-[96px] shrink-0 sm:w-48',
-            SIZE_BODY,
+            'text-muted-foreground/70 w-[96px] shrink-0 font-mono sm:w-48',
+            SIZE_CONTROL,
             'whitespace-nowrap tabular-nums'
           )}
         >
@@ -229,8 +229,8 @@ function RecordItem({ record, defaultExpanded = false }: RecordItemProps) {
         </span>
         <span
           className={cn(
-            'text-muted-foreground/70 hidden w-14 shrink-0 text-right sm:block',
-            SIZE_BODY,
+            'text-muted-foreground/70 hidden w-14 shrink-0 text-right font-mono sm:block',
+            SIZE_CONTROL,
             'tabular-nums'
           )}
         >
@@ -366,14 +366,14 @@ function StatusItem({ message }: StatusItemProps) {
       <IconComponent className={cn('h-3 w-3 shrink-0', colorClass)} />
       <span
         className={cn(
-          'text-muted-foreground/70 shrink-0',
-          SIZE_LABEL,
+          'text-muted-foreground/70 shrink-0 font-mono',
+          SIZE_CONTROL,
           'tabular-nums'
         )}
       >
         {timeString}
       </span>
-      <span className={cn(SIZE_BODY, colorClass)}>{message.text}</span>
+      <span className={cn(SIZE_CONTROL, colorClass)}>{message.text}</span>
     </div>
   );
 }

@@ -58,14 +58,14 @@ import {
   Paperclip,
   Play,
   RefreshCw,
-  Send,
+  ArrowUpFromDot,
   Square,
 } from 'lucide-react';
 import EmptyList from '../components/EmptyList';
 import { Calendar } from '../ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { cn } from '../lib/utils';
-import { BODY, CONTROL, HEADING, LABEL } from './studio-type';
+import { BODY, CONTROL, HEADING, LABEL, SIZE_LABEL } from './studio-type';
 import {
   formatUTCDateTime,
   parseUTCTimestamp,
@@ -311,7 +311,7 @@ function PositionRows({
       {rows.map(([label, position]) => (
         <div key={label} className="flex justify-between gap-3">
           <span className={LABEL}>{label}</span>
-          <span className="text-muted-foreground">
+          <span className="text-muted-foreground font-mono">
             {formatPosition(position)}
           </span>
         </div>
@@ -385,7 +385,6 @@ function StudioSession(): JSX.Element | null {
 
   const [selectedStream, setSelectedStream] = useState('');
   const [concurrencyOpen, setConcurrencyOpen] = useState(false);
-  const [composerOpen, setComposerOpen] = useState(true);
 
   const [readStartMode, setReadStartMode] =
     useState<ReadStartMode>('tailOffset');
@@ -1377,7 +1376,11 @@ function StudioSession(): JSX.Element | null {
               <div className="border-border/50 flex h-[55vh] min-h-0 flex-col overflow-hidden rounded-lg border lg:h-auto">
                 <div className="bg-muted flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2">
                   <div className="flex min-w-0 items-baseline gap-2">
-                    <span className={HEADING}>Records</span>
+                    <span
+                      className={cn(LABEL, 'text-foreground font-semibold')}
+                    >
+                      Records
+                    </span>
                     <span className={cn(LABEL, 'tabular-nums')}>
                       {recordsReceived}{' '}
                       {recordsReceived === 1 ? 'record' : 'records'} &middot;{' '}
@@ -1398,8 +1401,8 @@ function StudioSession(): JSX.Element | null {
                     variant="ghost"
                     size="sm"
                     className={cn(
-                      CONTROL,
-                      'text-muted-foreground h-8 gap-1 rounded-sm px-2'
+                      LABEL,
+                      'hover:text-foreground h-8 gap-1 rounded-sm px-2 font-medium'
                     )}
                     onClick={() => recordViewRef.current?.clear()}
                   >
@@ -1414,23 +1417,11 @@ function StudioSession(): JSX.Element | null {
 
                 <div className="border-border/40 shrink-0 border-t">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-4 py-3">
-                    <button
-                      type="button"
-                      className={cn(
-                        LABEL,
-                        'hover:text-foreground inline-flex items-center gap-1'
-                      )}
-                      aria-expanded={composerOpen}
-                      onClick={() => setComposerOpen((prev) => !prev)}
+                    <span
+                      className={cn(LABEL, 'text-foreground font-semibold')}
                     >
                       Payload
-                      <ChevronDown
-                        className={cn(
-                          'h-3 w-3 transition-transform',
-                          composerOpen && 'rotate-180'
-                        )}
-                      />
-                    </button>
+                    </span>
                     <Select
                       value={appendMode}
                       onValueChange={(v) => setAppendMode(v as AppendInputMode)}
@@ -1438,8 +1429,8 @@ function StudioSession(): JSX.Element | null {
                       <SelectTrigger
                         aria-label="Input mode"
                         className={cn(
-                          CONTROL,
-                          'h-8 w-auto gap-1 rounded-sm px-2'
+                          SIZE_LABEL,
+                          'text-foreground h-8 w-auto gap-1 rounded-sm px-2'
                         )}
                       >
                         <SelectValue />
@@ -1454,8 +1445,8 @@ function StudioSession(): JSX.Element | null {
                     </Select>
                     <label
                       className={cn(
-                        CONTROL,
-                        'text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 transition-colors'
+                        LABEL,
+                        'hover:text-foreground flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 transition-colors'
                       )}
                     >
                       <Paperclip className="h-3 w-3" />
@@ -1475,8 +1466,8 @@ function StudioSession(): JSX.Element | null {
                         <Button
                           variant="ghost"
                           className={cn(
-                            CONTROL,
-                            'text-muted-foreground h-8 gap-1 rounded-sm px-2 font-normal'
+                            LABEL,
+                            'h-8 gap-1 rounded-sm px-2 font-normal'
                           )}
                           aria-expanded={concurrencyOpen}
                         >
@@ -1527,7 +1518,7 @@ function StudioSession(): JSX.Element | null {
                       />
                       <Button
                         size="sm"
-                        className={cn(CONTROL, 'h-8 gap-1.5 rounded-sm')}
+                        className={cn(SIZE_LABEL, 'h-8 gap-1.5 rounded-sm')}
                         onClick={() => void handleAppend()}
                         disabled={
                           appending ||
@@ -1537,29 +1528,27 @@ function StudioSession(): JSX.Element | null {
                         {appending ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : (
-                          <Send className="h-3.5 w-3.5" />
+                          <ArrowUpFromDot className="h-3.5 w-3.5" />
                         )}
                         Append
                       </Button>
                     </div>
                   </div>
-                  {composerOpen && (
-                    <textarea
-                      className={cn(
-                        BODY,
-                        'bg-background placeholder:text-muted-foreground dark:bg-input/30 h-28 w-full resize-y border-0 px-4 py-3 font-mono text-[13px] focus:ring-0 focus:outline-none'
-                      )}
-                      value={appendPayload}
-                      onChange={(e) => setAppendPayload(e.target.value)}
-                      placeholder={
-                        appendMode === 'json-array'
-                          ? '[{"body":"hello","headers":{"source":"studio"}}]'
-                          : appendMode === 'lines'
-                            ? 'first line\nsecond line'
-                            : 'single record body'
-                      }
-                    />
-                  )}
+                  <textarea
+                    className={cn(
+                      BODY,
+                      'bg-background placeholder:text-muted-foreground dark:bg-input/30 h-28 w-full resize-y border-0 px-4 py-3 font-mono focus:ring-0 focus:outline-none'
+                    )}
+                    value={appendPayload}
+                    onChange={(e) => setAppendPayload(e.target.value)}
+                    placeholder={
+                      appendMode === 'json-array'
+                        ? '[{"body":"hello","headers":{"source":"studio"}}]'
+                        : appendMode === 'lines'
+                          ? 'first line\nsecond line'
+                          : 'single record body'
+                    }
+                  />
                   {lastAppendAck && (
                     <div className="px-4 py-2">
                       <PositionRows
