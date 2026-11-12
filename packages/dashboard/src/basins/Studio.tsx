@@ -289,11 +289,7 @@ function CopyIconButton({
           aria-label={label}
           onClick={onClick}
         >
-          {copied ? (
-            <Check className="h-3 w-3" />
-          ) : (
-            <Copy className="h-3 w-3" />
-          )}
+          {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
         </Button>
       </TooltipTrigger>
       <TooltipContent className="text-xs">{label}</TooltipContent>
@@ -1347,9 +1343,9 @@ function StudioSession(): JSX.Element | null {
               disabled={tailLoading}
             >
               {tailLoading ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Loader2 className="size-3.5 animate-spin" />
               ) : (
-                <RefreshCw className="h-3.5 w-3.5" />
+                <RefreshCw className="size-3.5" />
               )}
             </Button>
             <DocsLink href={STUDIO_DOCS.studio} label="Studio docs" />
@@ -1406,7 +1402,7 @@ function StudioSession(): JSX.Element | null {
                     )}
                     onClick={() => recordViewRef.current?.clear()}
                   >
-                    <Eraser className="h-3 w-3" />
+                    <Eraser className="size-3" />
                     Clear
                   </Button>
                 </div>
@@ -1474,7 +1470,7 @@ function StudioSession(): JSX.Element | null {
                           Concurrency
                           {appendMatchSeqNum.trim() &&
                             ` \u00b7 seq ${appendMatchSeqNum.trim()}`}
-                          <ChevronDown className="h-3 w-3" />
+                          <ChevronDown className="size-3" />
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent align="start" className="w-72 p-3">
@@ -1526,9 +1522,9 @@ function StudioSession(): JSX.Element | null {
                         }
                       >
                         {appending ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <Loader2 className="size-3.5 animate-spin" />
                         ) : (
-                          <ArrowUpFromDot className="h-3.5 w-3.5" />
+                          <ArrowUpFromDot className="size-3.5" />
                         )}
                         Append
                       </Button>
@@ -1578,7 +1574,7 @@ function StudioSession(): JSX.Element | null {
                           )}
                           onClick={() => void stopStreaming()}
                         >
-                          <Square className="h-3 w-3" />
+                          <Square className="size-3" />
                           Stop
                         </Button>
                       ) : (
@@ -1590,7 +1586,7 @@ function StudioSession(): JSX.Element | null {
                           )}
                           onClick={() => void startStreaming()}
                         >
-                          <Play className="h-3 w-3" />
+                          <Play className="size-3" />
                           Stream
                         </Button>
                       )}
@@ -1685,7 +1681,7 @@ function StudioSession(): JSX.Element | null {
                                 <span className="truncate">
                                   {formatTimestampDisplay(readFromValue.trim())}
                                 </span>
-                                <CalendarIcon className="h-3.5 w-3.5 opacity-70" />
+                                <CalendarIcon className="size-3.5 opacity-70" />
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent
@@ -1856,7 +1852,7 @@ function StudioSession(): JSX.Element | null {
                               onClick={() => setFencingToken('')}
                               title="Clear token"
                             >
-                              <Eraser className="h-3 w-3" />
+                              <Eraser className="size-3" />
                             </Button>
                           )}
                         </div>
@@ -1900,9 +1896,9 @@ function StudioSession(): JSX.Element | null {
                               }
                             >
                               {showEncryptionKey ? (
-                                <EyeOff className="h-3 w-3" />
+                                <EyeOff className="size-3" />
                               ) : (
-                                <Eye className="h-3 w-3" />
+                                <Eye className="size-3" />
                               )}
                             </Button>
                             {encryptionKey && (
@@ -1914,7 +1910,7 @@ function StudioSession(): JSX.Element | null {
                                 onClick={() => setEncryptionKey('')}
                                 title="Clear key"
                               >
-                                <Eraser className="h-3 w-3" />
+                                <Eraser className="size-3" />
                               </Button>
                             )}
                           </div>
@@ -2045,7 +2041,7 @@ function StudioSession(): JSX.Element | null {
                   >
                     {runningCommand ? (
                       <>
-                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        <Loader2 className="mr-1.5 size-3.5 animate-spin" />
                         Trimming...
                       </>
                     ) : (
