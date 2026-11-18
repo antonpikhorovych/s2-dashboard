@@ -262,6 +262,7 @@ function StudioSession(): JSX.Element | null {
   const streamAbortControllerRef = useRef<AbortController | null>(null);
   const previousStreamRef = useRef<string>('');
   const sessionAbortRef = useRef(new AbortController());
+  const readIdRef = useRef(0);
 
   const resolveToken = useCallback(async (): Promise<string | null> => {
     return await getToken();
@@ -577,6 +578,10 @@ function StudioSession(): JSX.Element | null {
       return;
     }
 
+    // A newer read owns the record view; an older one must not add to it.
+    const readId = ++readIdRef.current;
+    const stale = () => signal.aborted || readIdRef.current !== readId;
+
     recordViewRef.current?.clear();
     recordViewRef.current?.addStatus(
       'info',
@@ -591,7 +596,7 @@ function StudioSession(): JSX.Element | null {
         input,
         encryptionKey.trim() || undefined
       );
-      if (signal.aborted) return;
+      if (stale()) return;
       response.records.forEach((record) => {
         recordViewRef.current?.addRecord({
           seqNum: record.seqNum,
@@ -608,11 +613,39 @@ function StudioSession(): JSX.Element | null {
         'success',
         `Read ${response.records.length} record(s)`
       );
-      if (response.tail) {
-        setTailInfo(response.tail);
+      // A read only reports the tail when it gets near it, so ask for it
+      // to tell a read that stopped at a limit from one that reached the end.
+      let tail = response.tail;
+      if (!tail) {
+        try {
+          tail = (await checkStreamTail(s2, basinId, selectedStream)).tail;
+        } catch {
+          // The hint below is skipped when the tail is unknown.
+        }
+        if (stale()) return;
+      }
+      if (tail) {
+        setTailInfo(tail);
+      }
+      // With command records hidden, the last record shown can trail the
+      // read's real progress, so the hint only states what is known.
+      const last = response.records.at(-1);
+      const nextSeqNum = last ? Number(last.seqNum) + 1 : undefined;
+      if (tail && nextSeqNum !== undefined && nextSeqNum < tail.seqNum) {
+        recordViewRef.current?.addStatus(
+          'info',
+          `Last record shown is before the tail (seq ${tail.seqNum}).`,
+          {
+            label: `Continue from seq ${nextSeqNum}`,
+            onClick: () => {
+              setReadStartMode('seqNum');
+              setReadFromValue(String(nextSeqNum));
+            },
+          }
+        );
       }
     } catch (error) {
-      if (signal.aborted) return;
+      if (stale()) return;
       if (
         error instanceof RangeNotSatisfiableError &&
         error.tail &&
@@ -746,6 +779,7 @@ function StudioSession(): JSX.Element | null {
       return;
     }
 
+    readIdRef.current += 1;
     setIsStreaming(true);
     setRecordsReceived(0);
     setStreamStartedAtMs(Date.now());

@@ -1,6 +1,6 @@
 {
   "name": "@s2-dev/dashboard-lite",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "private": true,
   "description": "Static dashboard bundle served by s2-lite at /dashboard",
   "type": "module",

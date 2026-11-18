@@ -33,6 +33,12 @@ export interface StatusMessage {
   type: 'info' | 'success' | 'warning' | 'error';
   text: string;
   timestamp: Date;
+  action?: StatusAction;
+}
+
+export interface StatusAction {
+  label: string;
+  onClick: () => void;
 }
 
 interface RecordItemProps {
@@ -307,13 +313,27 @@ function StatusItem({ message }: StatusItemProps) {
         {timeString}
       </span>
       <span className={cn('text-xs', colorClass)}>{message.text}</span>
+      {message.action && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-5 px-1.5 text-[10px]"
+          onClick={message.action.onClick}
+        >
+          {message.action.label}
+        </Button>
+      )}
     </div>
   );
 }
 
 export interface RecordViewHandle {
   addRecord: (record: StreamRecord) => void;
-  addStatus: (type: StatusMessage['type'], text: string) => void;
+  addStatus: (
+    type: StatusMessage['type'],
+    text: string,
+    action?: StatusAction
+  ) => void;
   clear: () => void;
 }
 
@@ -328,8 +348,12 @@ type ItemType =
 let statusIdCounter = 0;
 
 export const RecordView = forwardRef<RecordViewHandle, RecordViewProps>(
-  function RecordView({ maxRecords = 500 }, ref) {
+  // Rows are not virtualized, so a long streaming read has to drop old ones.
+  // 1000 is the most records a single unary read returns.
+  function RecordView({ maxRecords = 1000 }, ref) {
     const [items, setItems] = useState<ItemType[]>([]);
+    const [droppedRecords, setDroppedRecords] = useState(0);
+    const recordCountRef = useRef(0);
     const [showLegend, setShowLegend] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const shouldAutoScrollRef = useRef(true);
@@ -349,28 +373,34 @@ export const RecordView = forwardRef<RecordViewHandle, RecordViewProps>(
 
     const addRecord = useCallback(
       (record: StreamRecord) => {
+        recordCountRef.current += 1;
+        const dropped = Math.max(0, recordCountRef.current - maxRecords);
+        if (dropped > 0) setDroppedRecords(dropped);
         setItems((prev) => {
           const newItems = [
             ...prev,
             { type: 'record' as const, id: `r-${record.seqNum}`, data: record },
           ];
-          if (newItems.length > maxRecords) {
-            return newItems.slice(-maxRecords);
-          }
-          return newItems;
+          let excess =
+            newItems.filter((item) => item.type === 'record').length -
+            maxRecords;
+          if (excess <= 0) return newItems;
+          return newItems.filter(
+            (item) => item.type !== 'record' || excess-- <= 0
+          );
         });
       },
       [maxRecords]
     );
 
     const addStatus = useCallback(
-      (type: StatusMessage['type'], text: string) => {
+      (type: StatusMessage['type'], text: string, action?: StatusAction) => {
         setItems((prev) => [
           ...prev,
           {
             type: 'status' as const,
             id: `s-${++statusIdCounter}`,
-            data: { type, text, timestamp: new Date() },
+            data: { type, text, timestamp: new Date(), action },
           },
         ]);
       },
@@ -378,6 +408,8 @@ export const RecordView = forwardRef<RecordViewHandle, RecordViewProps>(
     );
 
     const clear = useCallback(() => {
+      recordCountRef.current = 0;
+      setDroppedRecords(0);
       setItems([]);
     }, []);
 
@@ -475,6 +507,13 @@ export const RecordView = forwardRef<RecordViewHandle, RecordViewProps>(
           </div>
         ) : (
           <div className="divide-border/20 divide-y">
+            {droppedRecords > 0 && (
+              <div className="text-muted-foreground px-3 py-1.5 text-xs">
+                Showing the latest {maxRecords} records;{' '}
+                {droppedRecords.toLocaleString()} earlier record(s) dropped from
+                view.
+              </div>
+            )}
             {items.map((item) =>
               item.type === 'record' ? (
                 <RecordItem key={item.id} record={item.data} />
